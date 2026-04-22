@@ -78,9 +78,8 @@ $RECYCLE.BIN/
 *.log
 logs/
 
-# ─── Data (raw & processed datasets excluded; scripts/configs tracked) ──────
-data/raw/
-data/processed/
+# ─── Data (entire data directory excluded) ───────────────────────────────────
+data/
 
 # ─── AgentDB / RuFlo runtime databases ───────────────────────────────
 agentdb.rvf
