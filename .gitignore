@@ -1,0 +1,94 @@
+# ─── Node.js ─────────────────────────────────────────────────────────────────
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ─── Python ──────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+env/
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# ─── Environment / secrets ───────────────────────────────────────────────────
+.env
+.env.*
+!.env.example
+*.secret
+secrets/
+
+# ─── Claude Code — local/personal settings only ──────────────────────────────
+# .claude/settings.json     → committed (shared team config)
+# .claude/agents/           → committed
+# .claude/commands/         → committed
+# .claude/skills/           → committed
+# .claude/helpers/          → committed
+.claude/settings.local.json
+
+# ─── Ruflo / Claude-Flow — runtime state (regenerated each session) ──────────
+# .claude-flow/config.yaml      → committed
+# .claude-flow/hooks/           → committed
+# .claude-flow/workflows/       → committed
+# .claude-flow/CAPABILITIES.md  → committed
+.claude-flow/logs/
+.claude-flow/sessions/
+.claude-flow/data/
+.claude-flow/metrics/
+.claude-flow/security/
+.claude-flow/agents/
+
+# ─── ESP32 firmware artefacts (built locally) ────────────────────────────────
+*.bin
+*.elf
+*.map
+*.a
+sdkconfig
+build/
+
+# ─── OS generated ────────────────────────────────────────────────────────────
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Linux
+*~
+
+# ─── Editor / IDE ────────────────────────────────────────────────────────────
+.vscode/settings.json
+.vscode/*.code-workspace
+.idea/
+*.swp
+*.swo
+
+# ─── Logs ────────────────────────────────────────────────────────────────────
+*.log
+logs/
+
+# ─── Data (raw & processed datasets excluded; scripts/configs tracked) ──────
+data/raw/
+data/processed/
+
+# ─── AgentDB / RuFlo runtime databases ───────────────────────────────
+agentdb.rvf
+agentdb.rvf.lock
+ruvector.db
+
+# ─── Resources ────────────────────────────────────────────────────────────
+references
+research/experiments
+.swarm/memory.db-wal
+.swarm/memory.db-shm

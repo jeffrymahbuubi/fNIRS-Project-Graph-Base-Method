@@ -1,0 +1,19 @@
+{
+  "skill_sources": [
+    {
+      "type": "github",
+      "url": "https://github.com/anthropics/skills"
+    },
+    {
+      "type": "github",
+      "url": "https://github.com/K-Dense-AI/claude-scientific-skills"
+    },
+    {
+      "type": "local",
+      "path": "/home/user/jeffrymahbuubi/PROJECTS/1-fNIRS-Grid-Base-Method/.claude/skills"
+    }
+  ],
+  "embedding_model": "all-MiniLM-L6-v2",
+  "default_top_k": 3,
+  "load_skill_documents": true
+}
