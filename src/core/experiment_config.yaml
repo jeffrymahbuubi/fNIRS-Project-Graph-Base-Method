@@ -1,0 +1,43 @@
+# Experiment-specific configuration for fNIRS Graph Pipeline
+# Fields here are the hyperparameters you frequently tune to find better performance.
+# General runtime settings (data_dir, save_dir, validation strategy, epochs, lr, etc.)
+# are passed as CLI arguments and intentionally excluded from this file.
+#
+# Usage:
+#   python -m core.main --data_dir /data/processed --task GNG --config src/core/experiment_config.yaml
+#
+# Priority (lowest → highest): code defaults → this YAML → explicit CLI arguments
+
+# ---------------------------------------------------------------------------
+# Graph construction (data-level hyperparameters)
+# ---------------------------------------------------------------------------
+data:
+  max_trials: 4          # max trial files loaded per subject (null = all)
+  directed: false        # use directed edges (true) or undirected (false)
+  corr_threshold: 0.1    # minimum |Pearson r| for an edge to be included
+  self_loops: false      # include self-loop edges on each node
+
+# ---------------------------------------------------------------------------
+# Model architecture (GATv2 / GINE-GAT)
+# ---------------------------------------------------------------------------
+model:
+  n_layers: 2                  # number of GATv2Conv (or GINE) layers
+  n_filters: 64                # output features per attention head per layer
+  n_heads: 4                   # number of attention heads per layer
+  fc_size: 64                  # linear projection size before global pooling
+  dropout: 0.5                 # dropout probability applied after each layer
+  use_residual: true           # add residual (skip) connections between layers
+  use_norm: false              # apply normalisation between layers
+  norm_type: batch             # batch | layer  (active only when use_norm=true)
+  use_gine_first_layer: false  # replace first GATv2 layer with GINEConv
+
+# ---------------------------------------------------------------------------
+# Augmentation (applied to training set only, unless use_rwpe=true)
+# ---------------------------------------------------------------------------
+augmentation:
+  augment: false             # enable training augmentation
+  edge_dropout_p: 0.1        # probability of randomly dropping an edge
+  feature_mask_p: 0.1        # probability of masking a node feature value
+  feature_mask_mode: all     # masking granularity: all (values) | col (features) | row (nodes)
+  use_rwpe: false            # add Random Walk Positional Encoding to node features
+  rwpe_walk_length: 4        # walk length for RWPE (increases in_channels by this amount)
