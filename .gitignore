@@ -89,5 +89,6 @@ ruvector.db
 # ─── Resources ────────────────────────────────────────────────────────────
 references
 research/experiments
-.swarm/memory.db-wal
-.swarm/memory.db-shm
+
+# ─── Claude-Flow swarm runtime state (regenerated each session) ──────────────
+.swarm/
