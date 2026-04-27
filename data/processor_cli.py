@@ -218,9 +218,11 @@ class FNIRSDataProcessor:
 
         data = self.preprocessed.copy()
         if self.task_type in ('SS', 'VF'):
-            data.annotations.rename({"1.0": "Baseline", "3.0": "Task", "4.0": "Task", "5.0": "Task", "6.0": "Task"})
+            full_map = {"1.0": "Baseline", "3.0": "Task", "4.0": "Task", "5.0": "Task", "6.0": "Task"}
         else:
-            data.annotations.rename({"1.0": "Baseline", "3.0": "Task"})
+            full_map = {"1.0": "Baseline", "3.0": "Task"}
+        existing = set(data.annotations.description)
+        data.annotations.rename({k: v for k, v in full_map.items() if k in existing})
 
         task_durations = {'GNG': 35, 'VF': 60, 'SS': 60, '1backWM': 90}
         tmax = task_durations.get(self.task_type, 35)

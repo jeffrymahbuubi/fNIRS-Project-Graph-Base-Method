@@ -22,8 +22,8 @@ data:
 # ---------------------------------------------------------------------------
 model:
   n_layers: 2                  # number of GATv2Conv (or GINE) layers
-  n_filters: 64                # output features per attention head per layer
-  n_heads: 4                   # number of attention heads per layer
+  n_filters: 64                # scalar (same per layer) OR list e.g. [112, 48] — one value per layer
+  n_heads: 4                   # scalar (same per layer) OR list e.g. [8, 6]   — one value per layer
   fc_size: 64                  # linear projection size before global pooling
   dropout: 0.5                 # dropout probability applied after each layer
   use_residual: true           # add residual (skip) connections between layers

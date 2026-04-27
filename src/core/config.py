@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field, asdict
-from typing import Optional
+from typing import List, Optional, Union
 import os
 import random
 
@@ -28,8 +28,8 @@ class ExperimentConfig:
     self_loops: bool = False
     # Model
     n_layers: int = 2
-    n_filters: int = 64
-    n_heads: int = 4
+    n_filters: Union[int, List[int]] = 64
+    n_heads: Union[int, List[int]] = 4
     fc_size: int = 64
     dropout: float = 0.5
     use_residual: bool = True

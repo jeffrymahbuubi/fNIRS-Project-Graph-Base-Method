@@ -209,3 +209,83 @@ Compare: LA096's `2025-12-05_002` is 62 MB with trigger file.
 - [ ] Keep stimulation session recordings (`stimulation/`) in a separate analysis pipeline
 - [ ] Do NOT merge stimulation-session fNIRS data with the non-stimulation dataset
 - [ ] AH072's `2025-05-13_001` is likely corrupt (0 KB .nirs) — verify on source NAS
+
+---
+
+## Part 6 — Subject JSON Files for processor_cli.py
+**Updated:** 2026-04-28
+
+Two JSON files are used as `--subjects-json` arguments to `processor_cli.py`. Each file maps to exactly one `--root-dir`.
+
+### data/additional-raw — Processed Status
+The 11 Part 2 subjects (AA089–AA099) have been MATLAB-processed. HbO/HbR/HbT CSVs now live in:
+```
+data/additional-raw/anxiety/[SubjectID]/{GNG,SS}/
+```
+This supersedes the "unprocessed" note in Part 2. There is no `healthy/` subfolder — all 11 subjects are anxiety. All 11 confirmed with GNG ✓ and SS ✓ (validated 2026-04-28).
+
+---
+
+### subjects-raw.json — 51 subjects (GNG+SS, `data/raw` only)
+**Use with:** `--root-dir data/raw`
+
+| Group | Count | GNG+SS guaranteed |
+|---|---|---|
+| Healthy | 33 | Yes |
+| Anxiety | 18 | Yes |
+| **Total** | **51** | **Yes** |
+
+3 subjects have incomplete 4-task coverage (included because GNG+SS are present):
+- **AA011**: 1backWM, GNG, SS — missing VF
+- **LA053**: 1backWM, GNG, SS — missing VF
+- **AH047**: GNG, SS, VF — missing 1backWM
+
+> For 4-task analyses (1backWM + GNG + SS + VF), hardcode the original 48-subject set (32 healthy + 16 anxiety) and exclude AA011, LA053, AH047.
+
+---
+
+### subjects-additional-raw.json — 11 subjects (GNG+SS, `data/additional-raw` only)
+**Use with:** `--root-dir data/additional-raw`
+
+| Group | Count | GNG+SS guaranteed |
+|---|---|---|
+| Healthy | 0 | — |
+| Anxiety | 11 | Yes |
+| **Total** | **11** | **Yes** |
+
+Subjects: AA089, AA090, LA091, AA092, AA093, AA094, LA095, LA096, AA097, AA098, AA099
+
+> AA097 was a split recording (`2025-12-23_001` + `2025-12-23_002`). Concatenation and processing are complete.
+> These subjects have GNG and SS **only** — never include in 4-task analyses.
+
+---
+
+### CLI Usage Reference
+
+```bash
+# Process original cohort (data/raw)
+python data/processor_cli.py \
+  --mode batch \
+  --root-dir data/raw \
+  --output-dir data/processed \
+  --subjects-json data/subjects-raw.json \
+  --task GNG --data-type hbt \
+  --apply-zscore --save-preprocessed --use-grid-mapping
+
+# Process additional cohort (data/additional-raw)
+python data/processor_cli.py \
+  --mode batch \
+  --root-dir data/additional-raw \
+  --output-dir data/processed-additional \
+  --subjects-json data/subjects-additional-raw.json \
+  --task GNG --data-type hbt \
+  --apply-zscore --save-preprocessed --use-grid-mapping
+```
+
+### When to use which file
+
+| Use case | JSON file | root-dir | H | A | N |
+|---|---|---|---|---|---|
+| GNG+SS, original cohort | `subjects-raw.json` | `data/raw` | 33 | 18 | 51 |
+| GNG+SS, new anxiety cohort | `subjects-additional-raw.json` | `data/additional-raw` | 0 | 11 | 11 |
+| 4-task cross-analysis | Hardcode 32H + 16A | `data/raw` | 32 | 16 | 48 |

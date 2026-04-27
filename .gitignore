@@ -83,6 +83,14 @@ data/raw/
 data/processed/
 data/additional-raw
 data/sanity-check
+data/processed-old/
+data/processed-new/
+processed-new/
+
+# ─── Generated data artefacts (never commit) ─────────────────────────────────
+*.npy
+*_evoked.png
+*_time_marker.png
 
 # ─── AgentDB / RuFlo runtime databases ───────────────────────────────
 agentdb.rvf
