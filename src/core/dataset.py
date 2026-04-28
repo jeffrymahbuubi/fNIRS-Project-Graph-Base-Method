@@ -1,6 +1,7 @@
 # pylint: disable=too-many-arguments, too-many-locals, too-many-instance-attributes
 import configparser
 import glob
+import json
 import os
 from collections import Counter, defaultdict
 from typing import Dict, List, Optional, Sequence, Tuple
@@ -317,6 +318,45 @@ def get_kfold_loaders(
         val_indices = _subjects_to_indices(dataset, va_subjects)
         if verbose:
             print(f"=== K-Fold {fold_id}/{n_splits} (subject-level) ===")
+            _print_split_info("Train", dataset, train_indices)
+            _print_split_info("Val  ", dataset, val_indices)
+            print("=" * 45)
+        fold_loaders.append(
+            _make_loaders(
+                dataset, train_indices, val_indices,
+                batch_size, shuffle_train, num_workers, pin_memory,
+                train_transform, val_transform,
+            )
+        )
+    return fold_loaders
+
+
+def get_kfold_loaders_from_json(
+    dataset,
+    splits_json: str,
+    n_splits: int = 5,
+    *,
+    batch_size: int = 8,
+    shuffle_train: bool = True,
+    num_workers: int = 0,
+    pin_memory: bool = False,
+    train_transform=None,
+    val_transform=None,
+    verbose: bool = True,
+) -> List[Tuple["DataLoader", "DataLoader"]]:
+    with open(splits_json) as f:
+        data = json.load(f)
+    key = f"kfold_{n_splits}"
+    if key not in data:
+        available = [k for k in data if k.startswith("kfold_")]
+        raise ValueError(f"Key '{key}' not in splits JSON. Available: {available}")
+    fold_loaders = []
+    for fold_entry in data[key]:
+        fold_id = fold_entry["fold"]
+        train_indices = _subjects_to_indices(dataset, fold_entry["train_subjects"])
+        val_indices = _subjects_to_indices(dataset, fold_entry["val_subjects"])
+        if verbose:
+            print(f"=== K-Fold {fold_id}/{n_splits} (from JSON, subject-level) ===")
             _print_split_info("Train", dataset, train_indices)
             _print_split_info("Val  ", dataset, val_indices)
             print("=" * 45)

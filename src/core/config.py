@@ -58,6 +58,7 @@ class ExperimentConfig:
     k_folds: int = 5
     val_ratio: float = 0.2
     random_state: int = 42
+    splits_json: Optional[str] = None
     # Misc
     num_workers: int = 0
     pin_memory: bool = False

@@ -103,3 +103,6 @@ research/experiments
 
 # ─── Claude-Flow swarm runtime state (regenerated each session) ──────────────
 .swarm/
+
+# ─── CORAL runtime output (nested git repos created by CORAL at run time) ────
+coral/fnirs_gat/results/

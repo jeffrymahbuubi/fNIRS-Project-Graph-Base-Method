@@ -101,8 +101,16 @@ class FNIRSDataProcessor:
         # Load preprocessed CSV files
         hbo_file = next(self.subject_dir.glob('*HbO.csv'), None)
         hbr_file = next(self.subject_dir.glob('*HbR.csv'), None)
-        hbo_df = pd.read_csv(hbo_file, header=None).drop([0, 1]).reset_index(drop=True).astype(float)
-        hbr_df = pd.read_csv(hbr_file, header=None).drop([0, 1]).reset_index(drop=True).astype(float)
+        hbo_raw = pd.read_csv(hbo_file, header=None)
+        hbr_raw = pd.read_csv(hbr_file, header=None)
+
+        # Row 0 is the time vector; its first value is the CSV window start in seconds.
+        # Task-split CSVs (from split_combined_sessions.m) keep original timestamps, so
+        # t_offset > 0 for whichever task occupies the second half of a combined session.
+        t_offset = float(hbo_raw.iloc[0, 0])
+
+        hbo_df = hbo_raw.drop([0, 1]).reset_index(drop=True).astype(float)
+        hbr_df = hbr_raw.drop([0, 1]).reset_index(drop=True).astype(float)
         assert hbo_df.shape[0] == hbr_df.shape[0], "HbO and HbR rows must match"
 
         # Interleave rows: HbO, HbR
@@ -110,9 +118,22 @@ class FNIRSDataProcessor:
         combined.iloc[0::2, :] = hbo_df.values
         combined.iloc[1::2, :] = hbr_df.values
 
-        # Create RawArray and set annotations
+        # Create RawArray and align annotations to the CSV time window.
+        # Shifting by t_offset maps original-recording timestamps onto the 0-indexed
+        # RawArray time axis.  Events outside the window (other task's triggers) become
+        # negative or exceed signal_duration and are filtered out.
         preprocessed = mne.io.RawArray(combined.values, raw_haemo.info)
-        preprocessed.set_annotations(raw_haemo.annotations)
+        signal_duration = combined.shape[1] / raw_haemo.info['sfreq']
+        ann = raw_haemo.annotations
+        shifted_onsets = ann.onset - t_offset
+        valid = (shifted_onsets >= 0) & (shifted_onsets < signal_duration)
+        adjusted_ann = mne.Annotations(
+            onset=shifted_onsets[valid],
+            duration=ann.duration[valid],
+            description=np.array(ann.description)[valid],
+            orig_time=ann.orig_time,
+        )
+        preprocessed.set_annotations(adjusted_ann)
 
         self.raw_haemo = raw_haemo
         self.preprocessed = preprocessed
@@ -217,12 +238,14 @@ class FNIRSDataProcessor:
         save_dir.mkdir(parents=True, exist_ok=True)
 
         data = self.preprocessed.copy()
+        present = set(data.annotations.description)
         if self.task_type in ('SS', 'VF'):
-            full_map = {"1.0": "Baseline", "3.0": "Task", "4.0": "Task", "5.0": "Task", "6.0": "Task"}
+            _rename = {"1.0": "Baseline", "3.0": "Task", "4.0": "Task", "5.0": "Task", "6.0": "Task"}
         else:
-            full_map = {"1.0": "Baseline", "3.0": "Task"}
-        existing = set(data.annotations.description)
-        data.annotations.rename({k: v for k, v in full_map.items() if k in existing})
+            _rename = {"1.0": "Baseline", "3.0": "Task", "4.0": "Task"}
+        filtered_rename = {k: v for k, v in _rename.items() if k in present}
+        if filtered_rename:
+            data.annotations.rename(filtered_rename)
 
         task_durations = {'GNG': 35, 'VF': 60, 'SS': 60, '1backWM': 90}
         tmax = task_durations.get(self.task_type, 35)
@@ -353,9 +376,19 @@ class FNIRSDataProcessor:
         if self.task_type in ('SS', 'VF'):
             task_evs = [k for k in epochs.event_id if k in _MULTI_EVENTS]
             if task_evs:
-                epochs = epochs[task_evs]
+                # Old SS/VF protocol: codes 3–6 are four distinct conditions (code 6 always present).
+                # New protocol: code 3 or 4 = SS trials (×4), code 5 = session/section marker (×1).
+                # Exclude code 5 when code 6 is absent — it is a recording marker, not a condition.
+                if '6.0' not in epochs.event_id:
+                    task_evs = [k for k in task_evs if k != '5.0']
+                if task_evs:
+                    epochs = epochs[task_evs]
         elif '3.0' in epochs.event_id:
             epochs = epochs['3.0']
+        elif '4.0' in epochs.event_id:
+            # Combined-session GNG: task events have code 4; code 3 (SS) was
+            # filtered out by load_data because it falls outside this CSV window.
+            epochs = epochs['4.0']
 
         # Crop per-task preparation window before z-score so stats reflect only task data
         _PREP_CROP = {'GNG': 3, 'SS': 7, '1backWM': 5, 'VF': 7}

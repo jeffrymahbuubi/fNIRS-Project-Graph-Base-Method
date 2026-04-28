@@ -11,6 +11,42 @@
 - ALWAYS read a file before editing it
 - NEVER commit secrets, credentials, or .env files
 
+## MCP Tool Selection Rules (Always Enforced)
+
+- ALWAYS use `mcp__jupyter-mcp-server__*` tools when working with Jupyter notebooks — reading cells, executing code, inserting/editing cells, restarting kernels. Do NOT fall back to Bash or plain file reads for notebook operations.
+- ALWAYS use `mcp__context7__resolve-library-id` followed by `mcp__context7__query-docs` when looking up documentation for any library, framework, SDK, API, or CLI tool. Do NOT rely on training data alone — training data may be outdated.
+- ALWAYS use `mcp__netmind-parse-pdf__parse_pdf` when extracting or reading content from PDF files. Do NOT use Bash text extraction tools or plain file reads as alternatives.
+
+## Karpathy Coding Guidelines
+
+> Applies to **code written** — not to tool/agent selection (swarms and MCP tools must still be used as directed above).
+
+### Think Before Coding
+
+Before implementing anything:
+- State your assumptions explicitly. If uncertain, ask.
+- If multiple interpretations exist, present them — don't pick silently.
+- If a simpler approach exists, say so. Push back when warranted.
+- If something is unclear, stop. Name what's confusing. Ask.
+
+### Surgical Changes
+
+When editing existing code:
+- Don't "improve" adjacent code, comments, or formatting unrelated to the task.
+- If you notice unrelated dead code, mention it — don't delete it.
+- Remove only imports/variables/functions that **your changes** made unused. Leave pre-existing dead code alone.
+
+Every changed line must trace directly to the user's request.
+
+### Goal-Driven Execution
+
+For multi-step tasks, state a brief plan before starting:
+```
+1. [Step] → verify: [check]
+2. [Step] → verify: [check]
+```
+Transform imperative tasks into verifiable goals: "Fix the bug" → "Write a test that reproduces it, then make it pass."
+
 ## File Organization
 
 - NEVER save to root folder — use the directories below

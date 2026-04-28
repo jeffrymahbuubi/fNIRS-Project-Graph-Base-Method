@@ -2,7 +2,7 @@
 import os
 import pickle as pk
 import time
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional, Tuple
 
 import matplotlib
 matplotlib.use("Agg")
@@ -16,7 +16,7 @@ from sklearn.metrics import confusion_matrix
 from sklearn.utils.class_weight import compute_class_weight
 from torch.optim.lr_scheduler import LRScheduler
 
-from .dataset import get_holdout_loaders, get_kfold_loaders, get_loso_loaders
+from .dataset import get_holdout_loaders, get_kfold_loaders, get_kfold_loaders_from_json, get_loso_loaders
 
 
 # ---------------------------------------------------------------------------
@@ -377,17 +377,31 @@ def perform_kfold_training(model, dataset, cfg, device, exp_dir: str, model_name
                             train_transform, val_transform,
                             optimizer_class, optimizer_params,
                             scheduler_class, scheduler_params,
-                            resume: bool = False) -> Dict:
-    fold_data = get_kfold_loaders(
-        dataset,
-        n_splits=cfg.k_folds,
-        batch_size=cfg.batch_size,
-        random_state=cfg.random_state,
-        num_workers=cfg.num_workers,
-        pin_memory=cfg.pin_memory,
-        train_transform=train_transform,
-        val_transform=val_transform,
-    )
+                            resume: bool = False,
+                            splits_json: Optional[str] = None) -> Dict:
+    if splits_json is not None:
+        print(f"Using pre-defined splits from: {splits_json}")
+        fold_data = get_kfold_loaders_from_json(
+            dataset,
+            splits_json=splits_json,
+            n_splits=cfg.k_folds,
+            batch_size=cfg.batch_size,
+            num_workers=cfg.num_workers,
+            pin_memory=cfg.pin_memory,
+            train_transform=train_transform,
+            val_transform=val_transform,
+        )
+    else:
+        fold_data = get_kfold_loaders(
+            dataset,
+            n_splits=cfg.k_folds,
+            batch_size=cfg.batch_size,
+            random_state=cfg.random_state,
+            num_workers=cfg.num_workers,
+            pin_memory=cfg.pin_memory,
+            train_transform=train_transform,
+            val_transform=val_transform,
+        )
     os.makedirs(exp_dir, exist_ok=True)
     fold_metrics = _empty_fold_metrics()
 

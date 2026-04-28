@@ -1,7 +1,7 @@
 import os
 from argparse import ArgumentParser
 from datetime import date
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 import torch
 import yaml
@@ -70,6 +70,8 @@ def build_parser() -> ArgumentParser:
     p.add_argument("--feature_mask_mode", type=str, default=None, choices=["all", "col", "row"])
     p.add_argument("--use_rwpe", action="store_true")
     p.add_argument("--rwpe_walk_length", type=int, default=None)
+    p.add_argument("--splits_json", type=str, default=None,
+                   help="Path to pre-defined k-fold splits JSON (e.g. data/splits/kfold_splits_processed_new.json)")
     return p
 
 
@@ -83,11 +85,12 @@ def _load_yaml_flat(path: str) -> Dict[str, Any]:
     return flat
 
 
-def build_experiment_name(args) -> str:
+def build_experiment_name(args, max_trials: Optional[int] = None) -> str:
     model_str = "GINE_GAT" if args.use_gine_first_layer else "GATv2"
     aug_str = "aug" if args.augment else "noaug"
     today = date.today().strftime("%Y%m%d")
-    return f"{model_str}_{args.task}_{args.data_type}_{args.validation}_{aug_str}_{today}"
+    mt_str = f"_mt{max_trials}" if max_trials is not None else ""
+    return f"{model_str}_{args.task}_{args.data_type}_{args.validation}{mt_str}_{aug_str}_{today}"
 
 
 def _args_to_config(args, yaml_cfg: Dict[str, Any]) -> ExperimentConfig:
@@ -133,6 +136,7 @@ def _args_to_config(args, yaml_cfg: Dict[str, Any]) -> ExperimentConfig:
         k_folds=args.k_folds,
         val_ratio=args.val_ratio,
         random_state=args.random_state,
+        splits_json=args.splits_json,
         num_workers=args.num_workers,
         resume=args.resume,
     )
@@ -162,7 +166,7 @@ def main() -> None:
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Device: {device}")
 
-    exp_name = build_experiment_name(args)
+    exp_name = build_experiment_name(args, max_trials=cfg.max_trials)
     exp_dir = get_experiment_dir(exp_name, cfg.save_dir)
     save_config(cfg, os.path.join(exp_dir, "config.yaml"))
     print(f"Task: {cfg.task_type} | Experiment dir: {exp_dir}")
@@ -235,7 +239,7 @@ def main() -> None:
     if cfg.validation == "loso":
         perform_loso_training(**shared, resume=cfg.resume)
     elif cfg.validation == "kfold":
-        perform_kfold_training(**shared, resume=cfg.resume)
+        perform_kfold_training(**shared, resume=cfg.resume, splits_json=cfg.splits_json)
     else:
         perform_holdout_training(**shared)
 

@@ -13,23 +13,23 @@
 # ---------------------------------------------------------------------------
 data:
   max_trials: 4          # max trial files loaded per subject (null = all)
-  directed: false        # use directed edges (true) or undirected (false)
+  directed: true        # use directed edges (true) or undirected (false)
   corr_threshold: 0.1    # minimum |Pearson r| for an edge to be included
-  self_loops: false      # include self-loop edges on each node
+  self_loops: true      # include self-loop edges on each node
 
 # ---------------------------------------------------------------------------
 # Model architecture (GATv2 / GINE-GAT)
 # ---------------------------------------------------------------------------
 model:
   n_layers: 2                  # number of GATv2Conv (or GINE) layers
-  n_filters: 64                # scalar (same per layer) OR list e.g. [112, 48] — one value per layer
-  n_heads: 4                   # scalar (same per layer) OR list e.g. [8, 6]   — one value per layer
-  fc_size: 64                  # linear projection size before global pooling
-  dropout: 0.5                 # dropout probability applied after each layer
+  n_filters: [112, 32]                # scalar (same per layer) OR list e.g. [112, 48] — one value per layer
+  n_heads: [6, 4]                   # scalar (same per layer) OR list e.g. [8, 6]   — one value per layer
+  fc_size: 96                  # linear projection size before global pooling
+  dropout: 0.4                 # dropout probability applied after each layer
   use_residual: true           # add residual (skip) connections between layers
-  use_norm: false              # apply normalisation between layers
+  use_norm: True              # apply normalisation between layers
   norm_type: batch             # batch | layer  (active only when use_norm=true)
-  use_gine_first_layer: false  # replace first GATv2 layer with GINEConv
+  use_gine_first_layer: True  # replace first GATv2 layer with GINEConv
 
 # ---------------------------------------------------------------------------
 # Augmentation (applied to training set only, unless use_rwpe=true)
