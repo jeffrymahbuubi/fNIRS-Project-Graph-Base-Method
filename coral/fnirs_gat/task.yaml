@@ -1,0 +1,82 @@
+task:
+  name: fnirs-gat-hbo-optimization
+  description: |
+    Optimize a GATv2Conv-based graph neural network for binary classification
+    of fNIRS brain signals (Anxiety vs Healthy).
+
+    Context:
+    - Dataset: 62 subjects (29 anxiety / 33 healthy), GNG cognitive task, HBO signal
+    - Each trial is a graph: nodes = fNIRS channels (statistical features),
+      edges = channels with |Pearson r| >= 0.1 (attrs: correlation + coherence)
+    - Validation: holdout split (val_ratio=0.2, random_state=42, subject-level)
+
+    The solution.py file defines a run(data_dir: str) -> float function that
+    trains the model and returns the best validation F1 score.
+
+    FIXED (do not change):
+      data_type="hbo", max_trials=2, task_type="GNG"
+      validation="holdout", val_ratio=0.2, random_state=42
+      directed=True, self_loops=True
+
+    CURRENT BASELINE: Validation F1 = 0.8065
+
+    WHAT TO OPTIMIZE (roughly ordered by expected impact):
+      1. Augmentation — completely untested: augment, edge_dropout_p,
+         feature_mask_p, feature_mask_mode, use_rwpe, rwpe_walk_length
+      2. Loss — untested: use_focal_loss (focal_alpha/gamma), use_class_weights
+      3. Training: lr, epochs, patience, batch_size
+      4. Architecture: n_layers, n_filters, n_heads, fc_size, dropout, norm settings
+      5. Model code — may modify core/models.py for new architectural patterns
+
+    File layout:
+      solution.py       — config lives here; defines run(data_dir) -> float
+      core/             — GNN pipeline library (config, dataset, models, training, transforms, utils)
+        config.py       — ExperimentConfig dataclass (all tunable params)
+        models.py       — FlexibleGATNet (GATv2Conv + optional GINEConv first layer)
+        dataset.py      — fNIRSGraphDataset and k-fold/holdout/LOSO loaders
+        training.py     — train_epoch, evaluate, perform_holdout_training (returns dict with f1_score)
+        transforms.py   — StandardizeGraphFeatures, augmentation transforms
+        utils.py        — statistical features, correlation, coherence helpers
+
+  tips: |
+    - Metric is validation F1 (higher is better, 0–1 scale)
+    - Baseline F1 = 0.8065 with the current config in solution.py
+    - Best signal order (from sweep): HBO > HBT > HBR — data_type is fixed to hbo
+    - mt2 beats mt4 consistently — max_trials=2 is fixed
+    - Augmentation is completely unexplored: start here for quick wins
+    - Dataset is small (62 subjects) — strong regularization (dropout, augment) often helps
+    - eval timeout is 360s — each holdout run is ~60-90s on GPU
+    - Commit with coral eval after each meaningful improvement
+    - GENERALIZABILITY CHECK: the prior experiment only swept data_type × max_trials;
+      the current architecture ([112, 32] filters, [6, 4] heads) was never hyperparameter-searched.
+      When you find an improvement via augmentation or loss, verify it also holds with a simpler
+      architecture (e.g., n_filters=64, n_heads=4). If the improvement holds on both, it is a
+      robust finding. If it only helps the strong architecture, log that in your notes.
+    - ARCHITECTURE SENSITIVITY: the current best config may not be the global optimum for the
+      architecture either. Feel free to explore architectures different from [112, 32]/[6, 4]
+      in combination with the best augmentation/loss settings you find.
+
+grader:
+  timeout: 360
+  direction: maximize
+  args:
+    data_dir: "/home/user/jeffrymahbuubi/PROJECTS/2-fNIRS-Graph-Base-Method/data/processed-new"
+    python_executable: "/home/user/jeffrymahbuubi/PROJECTS/2-fNIRS-Graph-Base-Method/src/.venv/bin/python"
+    program_file: "solution.py"
+
+agents:
+  count: 3
+  runtime: claude_code
+  model: sonnet
+  max_turns: 100
+  warmstart:
+    enabled: false
+
+workspace:
+  results_dir: "/home/user/jeffrymahbuubi/PROJECTS/2-fNIRS-Graph-Base-Method/coral/fnirs_gat/results"
+  repo_path: "/home/user/jeffrymahbuubi/PROJECTS/2-fNIRS-Graph-Base-Method/coral/fnirs_gat/seed"
+
+run:
+  verbose: false
+  ui: false
+  session: tmux

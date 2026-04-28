@@ -76,11 +76,11 @@ class fNIRSGraphDataset(Dataset):
                 if abs(corr_mat[i, j]) >= self.corr_threshold:
                     edge_src.append(i)
                     edge_dst.append(j)
-                    edge_feats.append([float(corr_mat[i, j]), float(coh_mat[i, j])])
+                    edge_feats.append([abs(corr_mat[i, j]), float(coh_mat[i, j])])
                     if not self.directed:
                         edge_src.append(j)
                         edge_dst.append(i)
-                        edge_feats.append([float(corr_mat[i, j]), float(coh_mat[i, j])])
+                        edge_feats.append([abs(corr_mat[i, j]), float(coh_mat[i, j])])
 
         if edge_src:
             edge_index = torch.tensor([edge_src, edge_dst], dtype=torch.long)

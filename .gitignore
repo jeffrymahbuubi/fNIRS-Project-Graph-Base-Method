@@ -106,3 +106,13 @@ research/experiments
 
 # ─── CORAL runtime output (nested git repos created by CORAL at run time) ────
 coral/fnirs_gat/results/
+
+# ─── Jupyter session state ────────────────────────────────────────────────────
+.jupyter/
+*.jupyter_ystore.db
+
+# ─── Large data archives ──────────────────────────────────────────────────────
+data/processed-new.tar.gz
+
+# ─── Claude Code session notes (ephemeral working notes) ─────────────────────
+.claude/notes/

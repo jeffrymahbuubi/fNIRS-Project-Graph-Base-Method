@@ -13,7 +13,7 @@ from torch_geometric.data import Data
 from torch_geometric.loader import DataLoader
 from sklearn.model_selection import StratifiedKFold, StratifiedShuffleSplit
 
-from .utils import compute_statistical_features, pearson_correlation_matrix, coherence_matrix
+from .utils import pearson_correlation_matrix, coherence_matrix
 
 
 class fNIRSGraphDataset(Dataset):
@@ -52,13 +52,13 @@ class fNIRSGraphDataset(Dataset):
     def _build_graph(self, trial: np.ndarray, fs: float) -> Data:
         if trial.ndim == 2 and trial.shape[0] > trial.shape[1]:
             trial = trial.T
-        stats = compute_statistical_features(trial, channels_first=True)
-        node_feats = np.stack([
-            stats["mean"], stats["min"], stats["max"],
-            stats["skewness"], stats["kurtosis"], stats["variance"],
-        ], axis=1)
-        node_feats = np.nan_to_num(node_feats, nan=0.0)
+        # trial: [C, T]
+        # Per-channel z-score — self-contained, no cross-sample statistics needed
+        mu = trial.mean(axis=1, keepdims=True)
+        sigma = trial.std(axis=1, keepdims=True).clip(min=1e-8)
+        x_raw = ((trial - mu) / sigma).astype(np.float32)  # [C, T]
 
+        # Edges from original signal (Pearson/coherence invariant to per-channel scaling)
         corr_mat = pearson_correlation_matrix(trial, channels_first=True)
         coh_mat, _, _ = coherence_matrix(trial, fs=fs, coherence_ratio="1/3", channels_first=True)
 
@@ -76,11 +76,11 @@ class fNIRSGraphDataset(Dataset):
                 if abs(corr_mat[i, j]) >= self.corr_threshold:
                     edge_src.append(i)
                     edge_dst.append(j)
-                    edge_feats.append([float(corr_mat[i, j]), float(coh_mat[i, j])])
+                    edge_feats.append([abs(corr_mat[i, j]), float(coh_mat[i, j])])
                     if not self.directed:
                         edge_src.append(j)
                         edge_dst.append(i)
-                        edge_feats.append([float(corr_mat[i, j]), float(coh_mat[i, j])])
+                        edge_feats.append([abs(corr_mat[i, j]), float(coh_mat[i, j])])
 
         if edge_src:
             edge_index = torch.tensor([edge_src, edge_dst], dtype=torch.long)
@@ -90,7 +90,7 @@ class fNIRSGraphDataset(Dataset):
             edge_attr = torch.zeros((0, 2), dtype=torch.float)
 
         return Data(
-            x=torch.tensor(node_feats, dtype=torch.float),
+            x=torch.tensor(x_raw, dtype=torch.float),  # [C, T]
             edge_index=edge_index,
             edge_attr=edge_attr,
         )
@@ -130,10 +130,8 @@ class fNIRSGraphDataset(Dataset):
         return self._graphs[idx]
 
     def compute_stats(self) -> Dict[str, torch.Tensor]:
-        all_x = torch.cat([g.x for g in self._graphs], dim=0)
+        # x is already z-scored per-channel per-trial; only edge stats are needed
         valid_ea = [g.edge_attr for g in self._graphs if g.edge_attr.shape[0] > 0]
-        mean_x = all_x.mean(dim=0)
-        std_x = all_x.std(dim=0).clamp(min=1e-8)
         if valid_ea:
             all_ea = torch.cat(valid_ea, dim=0)
             mean_ea = all_ea.mean(dim=0)
@@ -141,7 +139,7 @@ class fNIRSGraphDataset(Dataset):
         else:
             mean_ea = torch.zeros(2)
             std_ea = torch.ones(2)
-        return {"mean_x": mean_x, "std_x": std_x, "mean_ea": mean_ea, "std_ea": std_ea}
+        return {"mean_ea": mean_ea, "std_ea": std_ea}
 
 
 # ---------------------------------------------------------------------------

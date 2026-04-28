@@ -1,0 +1,50 @@
+# Experiment configuration for fNIRS Spatial-Temporal Pipeline (core_st)
+# Fields here are the hyperparameters you frequently tune to find better performance.
+# General runtime settings (data_dir, save_dir, validation strategy, epochs, lr, etc.)
+# are passed as CLI arguments and intentionally excluded from this file.
+#
+# Usage:
+#   python -m core_st.main --data_dir data/processed-new --task GNG \
+#          --config src/core_st/experiment_config.yaml
+#
+# Priority (lowest → highest): code defaults → this YAML → explicit CLI arguments
+
+# ---------------------------------------------------------------------------
+# Graph construction (data-level hyperparameters)
+# ---------------------------------------------------------------------------
+data:
+  max_trials: 4          # max trial files loaded per subject (null = all)
+  directed: true         # use directed edges (true) or undirected (false)
+  corr_threshold: 0.1    # minimum |Pearson r| for an edge to be included
+  self_loops: true       # include self-loop edges on each node
+
+# ---------------------------------------------------------------------------
+# Spatial model architecture (GATv2 — shared weights across all windows)
+# ---------------------------------------------------------------------------
+model:
+  n_layers: 2            # number of GATv2Conv layers
+  n_filters: 64          # hidden dim per GATv2 layer (scalar only)
+  n_heads: 4             # attention heads per GATv2 layer (scalar only)
+  fc_size: 64            # classifier hidden dim
+  dropout: 0.4           # dropout probability
+  use_residual: true     # residual skip connections
+  use_norm: false        # batch/layer normalisation between GATv2 layers
+  norm_type: batch       # batch | layer  (active only when use_norm=true)
+
+# ---------------------------------------------------------------------------
+# Temporal model architecture (GRU + additive attention over windows)
+# ---------------------------------------------------------------------------
+temporal:
+  window_size: 32        # timepoints per window (~3.2s at 10Hz)
+  window_stride: 16      # step size — 50% overlap → ~19 windows from 326 timepoints
+  temporal_hidden: 64    # GRU hidden dimension
+  temporal_layers: 1     # number of GRU layers
+
+# ---------------------------------------------------------------------------
+# Augmentation (applied to training set only)
+# ---------------------------------------------------------------------------
+augmentation:
+  augment: false             # enable training augmentation
+  edge_dropout_p: 0.1        # probability of randomly dropping an edge
+  feature_mask_p: 0.1        # probability of masking a timepoint value in x=[C,T]
+  feature_mask_mode: all     # all (values) | col (timepoints) | row (channels)
