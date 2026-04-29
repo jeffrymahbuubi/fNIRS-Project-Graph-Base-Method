@@ -15,6 +15,6 @@
   "license": "ISC",
   "type": "commonjs",
   "devDependencies": {
-    "ruflo": "^3.5.80"
+    "ruflo": "^3.6.9"
   }
 }

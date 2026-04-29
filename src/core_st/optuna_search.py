@@ -190,7 +190,7 @@ def objective_st(
         batch_size=8,
         shuffle_train=True,
         num_workers=num_workers,
-        pin_memory=(device.type == "cuda"),
+        pin_memory=False,
         val_ratio=0.2,
         random_state=42,
         train_transform=val_transform,

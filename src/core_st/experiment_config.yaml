@@ -22,23 +22,23 @@ data:
 # Spatial model architecture (GATv2 — shared weights across all windows)
 # ---------------------------------------------------------------------------
 model:
-  n_layers: 2            # number of GATv2Conv layers
-  n_filters: 64          # hidden dim per GATv2 layer (scalar only)
-  n_heads: 4             # attention heads per GATv2 layer (scalar only)
-  fc_size: 64            # classifier hidden dim
+  n_layers: 3            # number of GATv2Conv layers  [Optuna best: was 2]
+  n_filters: 96          # hidden dim per GATv2 layer (scalar only)  [Optuna best: was 64]
+  n_heads: 6             # attention heads per GATv2 layer (scalar only)  [Optuna best: was 4]
+  fc_size: 256           # classifier hidden dim  [Optuna best: was 64]
   dropout: 0.4           # dropout probability
-  use_residual: true     # residual skip connections
-  use_norm: false        # batch/layer normalisation between GATv2 layers
+  use_residual: false    # residual skip connections  [Optuna best: was true — residual hurt HBT 10/10 trials]
+  use_norm: true         # batch/layer normalisation between GATv2 layers  [Optuna best: was false]
   norm_type: batch       # batch | layer  (active only when use_norm=true)
 
 # ---------------------------------------------------------------------------
 # Temporal model architecture (GRU + additive attention over windows)
 # ---------------------------------------------------------------------------
 temporal:
-  window_size: 32        # timepoints per window (~3.2s at 10Hz)
-  window_stride: 16      # step size — 50% overlap → ~19 windows from 326 timepoints
-  temporal_hidden: 64    # GRU hidden dimension
-  temporal_layers: 1     # number of GRU layers
+  window_size: 48        # timepoints per window (~4.8s at 10Hz)  [Optuna best: was 32]
+  window_stride: 16      # step size — 33% overlap → ~18 windows from 326 timepoints
+  temporal_hidden: 128   # GRU hidden dimension  [Optuna best: was 64]
+  temporal_layers: 3     # number of GRU layers  [Optuna best: was 1]
 
 # ---------------------------------------------------------------------------
 # Augmentation (applied to training set only)

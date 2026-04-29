@@ -107,9 +107,13 @@ research/experiments
 # ─── CORAL runtime output (nested git repos created by CORAL at run time) ────
 coral/fnirs_gat/results/
 
-# ─── Jupyter session state ────────────────────────────────────────────────────
+# ─── Jupyter session state & checkpoints ─────────────────────────────────────
 .jupyter/
 *.jupyter_ystore.db
+.ipynb_checkpoints/
+
+# ─── Test artefacts ───────────────────────────────────────────────────────────
+.pytest_cache/
 
 # ─── Large data archives ──────────────────────────────────────────────────────
 data/processed-new.tar.gz
