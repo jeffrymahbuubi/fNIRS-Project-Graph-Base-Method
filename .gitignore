@@ -31,17 +31,8 @@ secrets/
 # .claude/helpers/          → committed
 .claude/settings.local.json
 
-# ─── Ruflo / Claude-Flow — runtime state (regenerated each session) ──────────
-# .claude-flow/config.yaml      → committed
-# .claude-flow/hooks/           → committed
-# .claude-flow/workflows/       → committed
-# .claude-flow/CAPABILITIES.md  → committed
-.claude-flow/logs/
-.claude-flow/sessions/
-.claude-flow/data/
-.claude-flow/metrics/
-.claude-flow/security/
-.claude-flow/agents/
+# ─── Claude-Flow — entire folder excluded (tool-managed, not project code) ───
+.claude-flow/
 
 # ─── ESP32 firmware artefacts (built locally) ────────────────────────────────
 *.bin
