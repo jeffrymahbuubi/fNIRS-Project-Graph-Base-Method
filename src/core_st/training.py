@@ -52,16 +52,21 @@ class CosineWarmupScheduler(LRScheduler):
 
 
 class EarlyStopping:
-    def __init__(self, patience: int = 10, min_delta: float = 1e-4):
+    def __init__(self, patience: int = 10, min_delta: float = 1e-4, mode: str = "max"):
         self.patience = patience
         self.min_delta = min_delta
+        self.mode = mode  # "max": higher is better (F1); "min": lower is better (loss)
         self.counter = 0
         self.best_score: float = None
         self.best_epoch: int = 0
         self.early_stop: bool = False
 
     def __call__(self, score: float, epoch: int) -> bool:
-        if self.best_score is None or score > self.best_score + self.min_delta:
+        if self.mode == "min":
+            improved = self.best_score is None or score < self.best_score - self.min_delta
+        else:
+            improved = self.best_score is None or score > self.best_score + self.min_delta
+        if improved:
             self.best_score = score
             self.best_epoch = epoch
             self.counter = 0
@@ -69,8 +74,9 @@ class EarlyStopping:
             self.counter += 1
             print(f"  EarlyStopping: {self.counter}/{self.patience} no improvement")
         if self.counter >= self.patience:
+            label = "Loss" if self.mode == "min" else "F1"
             print(f"  EarlyStopping triggered at epoch {epoch + 1}. "
-                  f"Best F1={self.best_score:.4f} at epoch {self.best_epoch + 1}")
+                  f"Best {label}={self.best_score:.4f} at epoch {self.best_epoch + 1}")
             self.early_stop = True
         return self.early_stop
 
@@ -242,10 +248,12 @@ def _empty_fold_metrics() -> Dict:
 
 def _run_fold(model, optimizer, scheduler, train_loader, val_loader, device,
               cfg) -> Tuple[Dict, int, Dict]:
-    early_stopper = EarlyStopping(patience=cfg.patience)
+    checkpoint_metric = getattr(cfg, "checkpoint_metric", "f1")
+    mode = "min" if checkpoint_metric == "loss" else "max"
+    early_stopper = EarlyStopping(patience=cfg.patience, mode=mode)
     loss_fn = _make_loss_fn(cfg, train_loader, device)
     best_model_state = None
-    best_val_f1 = -1.0
+    best_val_score = float("inf") if checkpoint_metric == "loss" else -1.0
     best_epoch = 0
     history = {k: [] for k in ["train_loss", "train_accuracy", "train_f1",
                                 "val_loss", "val_accuracy", "val_f1"]}
@@ -266,11 +274,13 @@ def _run_fold(model, optimizer, scheduler, train_loader, val_loader, device,
             history[k].append(v)
         print(f"Ep {epoch + 1:>4}: TR L={tr_loss:.4f} Acc={tr_acc:.4f} F1={tr_f1:.4f} | "
               f"VL L={vl_loss:.4f} Acc={vl_acc:.4f} F1={vl_f1:.4f}")
-        if vl_f1 > best_val_f1:
-            best_val_f1 = vl_f1
+        monitor_val = vl_loss if checkpoint_metric == "loss" else vl_f1
+        improved = (vl_loss < best_val_score) if checkpoint_metric == "loss" else (vl_f1 > best_val_score)
+        if improved:
+            best_val_score = monitor_val
             best_epoch = epoch
             best_model_state = {k: v.cpu().clone() for k, v in model.state_dict().items()}
-        if early_stopper(vl_f1, epoch):
+        if early_stopper(monitor_val, epoch):
             break
         if scheduler is not None:
             scheduler.step()

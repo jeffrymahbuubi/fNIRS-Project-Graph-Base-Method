@@ -45,6 +45,7 @@ class ExperimentConfig:
     batch_size: int = 8
     lr: float = 1e-3
     patience: int = 10
+    checkpoint_metric: str = "f1"
     use_class_weights: bool = False
     sqrt_class_weights: bool = False
     use_focal_loss: bool = False

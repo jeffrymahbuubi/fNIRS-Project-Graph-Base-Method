@@ -40,6 +40,8 @@ def build_parser() -> ArgumentParser:
     p.add_argument("--batch_size", type=int, default=8)
     p.add_argument("--lr", type=float, default=1e-3)
     p.add_argument("--patience", type=int, default=10)
+    p.add_argument("--checkpoint_metric", type=str, default="f1", choices=["f1", "loss"],
+                   help="Metric used for checkpoint saving and early stopping: 'f1' (best val F1) or 'loss' (lowest val loss)")
     p.add_argument("--use_class_weights", action="store_true")
     p.add_argument("--sqrt_class_weights", action="store_true")
     p.add_argument("--use_focal_loss", action="store_true")
@@ -130,6 +132,7 @@ def _args_to_config(args, yaml_cfg: Dict[str, Any]) -> ExperimentConfig:
         batch_size=args.batch_size,
         lr=args.lr,
         patience=args.patience,
+        checkpoint_metric=args.checkpoint_metric,
         use_class_weights=args.use_class_weights,
         sqrt_class_weights=args.sqrt_class_weights,
         use_focal_loss=args.use_focal_loss,

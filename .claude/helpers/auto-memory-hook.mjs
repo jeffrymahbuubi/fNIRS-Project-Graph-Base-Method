@@ -11,8 +11,9 @@
  *   node auto-memory-hook.mjs status   # Show bridge status
  */
 
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync, readdirSync } from 'fs';
 import { join, dirname } from 'path';
+import { createHash } from 'crypto';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -20,6 +21,7 @@ const __dirname = dirname(__filename);
 const PROJECT_ROOT = join(__dirname, '../..');
 const DATA_DIR = join(PROJECT_ROOT, '.claude-flow', 'data');
 const STORE_PATH = join(DATA_DIR, 'auto-memory-store.json');
+const IMPORT_MANIFEST_PATH = join(DATA_DIR, 'import-manifest.json');
 
 // Colors
 const GREEN = '\x1b[0;32m';
@@ -33,6 +35,27 @@ const dim = (msg) => console.log(`  ${DIM}${msg}${RESET}`);
 
 // Ensure data dir
 if (!existsSync(DATA_DIR)) mkdirSync(DATA_DIR, { recursive: true });
+
+// Returns an MD5 hash of all *.md files in the project's auto-memory directory.
+// Returns null if the directory doesn't exist or is empty.
+function getMemoryDirHash() {
+  const homeDir = process.env.HOME || '';
+  // Claude Code derives the project key by replacing every '/' in the path with '-'
+  const projectKey = PROJECT_ROOT.replace(/\//g, '-');
+  const memoryDir = join(homeDir, '.claude', 'projects', projectKey, 'memory');
+  if (!existsSync(memoryDir)) return null;
+  try {
+    const files = readdirSync(memoryDir).filter(f => f.endsWith('.md')).sort();
+    if (files.length === 0) return null;
+    const hash = createHash('md5');
+    for (const f of files) {
+      hash.update(f + ':' + readFileSync(join(memoryDir, f), 'utf-8'));
+    }
+    return hash.digest('hex');
+  } catch {
+    return null;
+  }
+}
 
 // ============================================================================
 // Simple JSON File Backend (implements IMemoryBackend interface)
@@ -209,7 +232,22 @@ function readConfig() {
 // Commands
 // ============================================================================
 
-async function doImport() {
+async function doImport(skipIfExists = false) {
+  // --skip-if-exists: compare current memory file hashes against saved manifest.
+  // If nothing changed since the last import, skip to prevent vector accumulation.
+  if (skipIfExists) {
+    const currentHash = getMemoryDirHash();
+    if (currentHash && existsSync(IMPORT_MANIFEST_PATH)) {
+      try {
+        const manifest = JSON.parse(readFileSync(IMPORT_MANIFEST_PATH, 'utf-8'));
+        if (manifest.memoryHash === currentHash) {
+          dim('Skip-if-exists: memory files unchanged since last import');
+          return;
+        }
+      } catch { /* corrupt manifest — proceed with import */ }
+    }
+  }
+
   log('Importing auto memory files into bridge...');
 
   const memPkg = await loadMemoryPackage();
@@ -255,6 +293,12 @@ async function doImport() {
     dim(`├─ Learning: ${config.learningBridge.enabled ? 'active' : 'disabled'}`);
     dim(`├─ Graph: ${config.memoryGraph.enabled ? 'active' : 'disabled'}`);
     dim(`└─ Agent scopes: ${config.agentScopes.enabled ? 'active' : 'disabled'}`);
+
+    // Save manifest so future sessions with --skip-if-exists can detect unchanged files
+    const currentHash = getMemoryDirHash();
+    if (currentHash) {
+      writeFileSync(IMPORT_MANIFEST_PATH, JSON.stringify({ memoryHash: currentHash, lastImport: Date.now() }, null, 2), 'utf-8');
+    }
   } catch (err) {
     dim(`Import failed (non-critical): ${err.message}`);
   }
@@ -347,17 +391,21 @@ async function doStatus() {
 // ============================================================================
 
 const command = process.argv[2] || 'status';
+const skipIfExists = process.argv.includes('--skip-if-exists');
 
 // Suppress unhandled rejection warnings from dynamic import() failures
 process.on('unhandledRejection', () => {});
 
 try {
   switch (command) {
-    case 'import': await doImport(); break;
+    case 'import':
+    case 'import-all':
+      await doImport(skipIfExists);
+      break;
     case 'sync': await doSync(); break;
     case 'status': await doStatus(); break;
     default:
-      console.log('Usage: auto-memory-hook.mjs <import|sync|status>');
+      console.log('Usage: auto-memory-hook.mjs <import|import-all|sync|status> [--skip-if-exists]');
       break;
   }
 } catch (err) {

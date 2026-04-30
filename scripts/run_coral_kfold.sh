@@ -36,9 +36,15 @@ BATCH_SIZE=8
 PATIENCE=9999
 SEED=42
 
-if [ "$#" -gt 0 ]; then
-    DATA_TYPES=("$@")
-else
+CHECKPOINT_METRIC="f1"
+DATA_TYPES=()
+for arg in "$@"; do
+    case "$arg" in
+        --checkpoint_metric=*) CHECKPOINT_METRIC="${arg#--checkpoint_metric=}" ;;
+        hbo|hbr|hbt) DATA_TYPES+=("$arg") ;;
+    esac
+done
+if [ "${#DATA_TYPES[@]}" -eq 0 ]; then
     DATA_TYPES=(hbo hbr hbt)
 fi
 
@@ -65,6 +71,7 @@ for K_FOLDS in 5 10; do
             --lr "$LR" \
             --batch_size "$BATCH_SIZE" \
             --patience "$PATIENCE" \
+            --checkpoint_metric "$CHECKPOINT_METRIC" \
             --seed "$SEED"
 
     done

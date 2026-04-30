@@ -81,7 +81,7 @@ def main():
         "subjects": subjects,
     }
 
-    for k in [5, 10]:
+    for k in [3, 5, 10]:
         folds = generate_kfold(subjects, k, args.seed)
         result[f"kfold_{k}"] = folds
         print(f"\nkfold_{k} splits:")
