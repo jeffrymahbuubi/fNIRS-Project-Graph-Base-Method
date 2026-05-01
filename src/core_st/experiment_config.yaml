@@ -13,7 +13,7 @@
 # Graph construction (data-level hyperparameters)
 # ---------------------------------------------------------------------------
 data:
-  max_trials: 2          # max trial files loaded per subject (null = all)
+  max_trials: 4          # max trial files loaded per subject (null = all)
   directed: true         # use directed edges (true) or undirected (false)
   corr_threshold: 0.1    # minimum |Pearson r| for an edge to be included
   self_loops: true       # include self-loop edges on each node
@@ -22,11 +22,11 @@ data:
 # Spatial model architecture (GATv2 — shared weights across all windows)
 # ---------------------------------------------------------------------------
 model:
-  n_layers: 3            # number of GATv2Conv layers  [Optuna best: was 2]
-  n_filters: 96          # hidden dim per GATv2 layer (scalar only)  [Optuna best: was 64]
-  n_heads: 6             # attention heads per GATv2 layer (scalar only)  [Optuna best: was 4]
+  n_layers: 2            # number of GATv2Conv layers  [Optuna best: was 2]
+  n_filters: 80          # hidden dim per GATv2 layer (scalar only)  [Optuna best: was 64]
+  n_heads: 2             # attention heads per GATv2 layer (scalar only)  [Optuna best: was 4]
   fc_size: 256           # classifier hidden dim  [Optuna best: was 64]
-  dropout: 0.4           # dropout probability
+  dropout: 0.3           # dropout probability
   use_residual: false    # residual skip connections  [Optuna best: was true — residual hurt HBT 10/10 trials]
   use_norm: true         # batch/layer normalisation between GATv2 layers  [Optuna best: was false]
   norm_type: batch       # batch | layer  (active only when use_norm=true)
@@ -35,10 +35,10 @@ model:
 # Temporal model architecture (GRU + additive attention over windows)
 # ---------------------------------------------------------------------------
 temporal:
-  window_size: 48        # timepoints per window (~4.8s at 10Hz)  [Optuna best: was 32]
-  window_stride: 16      # step size — 33% overlap → ~18 windows from 326 timepoints
-  temporal_hidden: 128   # GRU hidden dimension  [Optuna best: was 64]
-  temporal_layers: 3     # number of GRU layers  [Optuna best: was 1]
+  window_size: 16        # timepoints per window (~4.8s at 10Hz)  [Optuna best: was 32]
+  window_stride: 8      # step size — 33% overlap → ~18 windows from 326 timepoints
+  temporal_hidden: 192   # GRU hidden dimension  [Optuna best: was 64]
+  temporal_layers: 1     # number of GRU layers  [Optuna best: was 1]
 
 # ---------------------------------------------------------------------------
 # Augmentation (applied to training set only)

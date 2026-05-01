@@ -43,6 +43,7 @@ for arg in "$@"; do
     case "$arg" in
         --checkpoint_metric=*) CHECKPOINT_METRIC="${arg#--checkpoint_metric=}" ;;
         hbo|hbr|hbt) DATA_TYPES+=("$arg") ;;
+        --*) echo "WARNING: unrecognised argument '$arg' — ignored. Did you mean --checkpoint_metric=?" >&2 ;;
     esac
 done
 if [ "${#DATA_TYPES[@]}" -eq 0 ]; then

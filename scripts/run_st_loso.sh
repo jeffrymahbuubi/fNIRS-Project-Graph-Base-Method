@@ -21,6 +21,8 @@
 #   bash scripts/run_st_loso.sh               # all signal types
 #   bash scripts/run_st_loso.sh hbt           # hbt only
 #   bash scripts/run_st_loso.sh hbo hbr       # two signal types
+#   bash scripts/run_st_loso.sh --checkpoint_metric=loss     # checkpoint on lowest val loss
+#   bash scripts/run_st_loso.sh hbo --checkpoint_metric=loss
 
 set -euo pipefail
 
@@ -44,6 +46,7 @@ for arg in "$@"; do
     case "$arg" in
         --checkpoint_metric=*) CHECKPOINT_METRIC="${arg#--checkpoint_metric=}" ;;
         hbo|hbr|hbt) DATA_TYPES+=("$arg") ;;
+        --*) echo "WARNING: unrecognised argument '$arg' — ignored. Did you mean --checkpoint_metric=?" >&2 ;;
     esac
 done
 if [ "${#DATA_TYPES[@]}" -eq 0 ]; then

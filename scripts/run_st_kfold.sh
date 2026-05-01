@@ -21,6 +21,8 @@
 #   bash scripts/run_st_kfold.sh               # all signal types, 5-fold and 10-fold
 #   bash scripts/run_st_kfold.sh hbt           # hbt only
 #   bash scripts/run_st_kfold.sh hbo hbr       # two signal types
+#   bash scripts/run_st_kfold.sh --checkpoint_metric=loss    # checkpoint on lowest val loss
+#   bash scripts/run_st_kfold.sh hbo --checkpoint_metric=loss
 
 set -euo pipefail
 
@@ -28,14 +30,14 @@ REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 CONFIG="$REPO_ROOT/src/core_st/experiment_config.yaml"
 DATE_TAG="$(date +%Y%m%d)"
 BASE_SAVE="$REPO_ROOT/research/experiments/$DATE_TAG/st-kfold"
-DATA_DIR="$REPO_ROOT/data/processed-new"
-SPLITS_JSON="$REPO_ROOT/data/splits/kfold_splits_processed_new.json"
+DATA_DIR="$REPO_ROOT/data/processed-new-mc"
+SPLITS_JSON="$REPO_ROOT/data/splits/kfold_splits_processed_new_mc.json"
 
 # Optuna best-trial fixed settings
-LR=1.375e-4
-EPOCHS=100
+LR=0.000635
+EPOCHS=150
 BATCH_SIZE=8
-PATIENCE=9999
+PATIENCE=30
 SEED=42
 NUM_WORKERS=4
 
@@ -45,6 +47,7 @@ for arg in "$@"; do
     case "$arg" in
         --checkpoint_metric=*) CHECKPOINT_METRIC="${arg#--checkpoint_metric=}" ;;
         hbo|hbr|hbt) DATA_TYPES+=("$arg") ;;
+        --*) echo "WARNING: unrecognised argument '$arg' — ignored. Did you mean --checkpoint_metric=?" >&2 ;;
     esac
 done
 if [ "${#DATA_TYPES[@]}" -eq 0 ]; then
