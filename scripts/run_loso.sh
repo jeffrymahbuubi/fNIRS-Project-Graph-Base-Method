@@ -31,7 +31,7 @@ DATA_DIR="$REPO_ROOT/data/processed-new"
 
 # Training settings (max_trials and model/graph params come from experiment_config.yaml)
 EPOCHS=150
-LR=0.036652
+LR=6.79e-03
 BATCH_SIZE=8
 PATIENCE=9999
 SEED=42

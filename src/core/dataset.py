@@ -237,12 +237,12 @@ def _make_loaders(
     train_loader = DataLoader(
         train_ds, batch_size=batch_size, shuffle=shuffle_train,
         num_workers=num_workers, pin_memory=pin_memory,
-        persistent_workers=(num_workers > 0),
+        persistent_workers=False,
     )
     val_loader = DataLoader(
         val_ds, batch_size=batch_size, shuffle=False,
         num_workers=num_workers, pin_memory=pin_memory,
-        persistent_workers=(num_workers > 0),
+        persistent_workers=False,
     )
     return train_loader, val_loader
 

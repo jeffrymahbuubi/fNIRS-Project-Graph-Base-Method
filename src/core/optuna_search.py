@@ -223,7 +223,7 @@ def objective(
         batch_size=8,
         shuffle_train=True,
         num_workers=num_workers,
-        pin_memory=False,
+        pin_memory=True,
         val_ratio=0.2,
         random_state=42,
         train_transform=transform,
@@ -314,7 +314,7 @@ def objective_kfold(
         batch_size=8,
         shuffle_train=True,
         num_workers=num_workers,
-        pin_memory=False,
+        pin_memory=True,
         train_transform=transform,
         val_transform=transform,
         verbose=False,
@@ -325,7 +325,10 @@ def objective_kfold(
     total_params: Optional[int] = None
     trainable_params: Optional[int] = None
 
-    for fold_idx, (train_loader, val_loader) in enumerate(fold_data):
+    for fold_idx in range(len(fold_data)):
+        train_loader, val_loader = fold_data[fold_idx]
+        fold_data[fold_idx] = None  # release persistent workers from this fold before next
+
         model = _build_model(hparams, device)
 
         if total_params is None:
@@ -351,6 +354,7 @@ def objective_kfold(
 
         fold_f1_scores.append(final_f1)
         fold_best_epochs.append(best_epoch)
+        del train_loader, val_loader
 
     mean_f1 = sum(fold_f1_scores) / len(fold_f1_scores)
 
@@ -444,6 +448,7 @@ def run_optuna(
     eval_strategy: str = "holdout",
     inner_folds: int = 3,
     splits_json: Optional[str] = None,
+    storage_url: Optional[str] = None,
 ) -> optuna.Study:
     """
     Initialize and run an Optuna study for FlexibleGATNet (src/core).
@@ -451,8 +456,9 @@ def run_optuna(
     eval_strategy="holdout"  → single 80/20 holdout split per trial (fast)
     eval_strategy="kfold"    → inner k-fold CV per trial (robust; requires splits_json)
 
-    Study is persisted to SQLite; resumable with load_if_exists=True.
-    Keep n_jobs=1 to avoid SQLite write conflicts.
+    storage_url: optional PostgreSQL/MySQL URL for distributed multi-machine runs.
+    If None, falls back to a local SQLite file (single-machine only).
+    Example: "postgresql://user:pass@host:5432/optuna"
     """
     if eval_strategy == "kfold" and splits_json is None:
         raise ValueError("--splits_json is required when --eval_strategy kfold")
@@ -472,7 +478,18 @@ def run_optuna(
     save_dir = get_experiment_dir(
         experiment_name=study_name, base_dir=base_dir, overwrite=False
     )
-    storage_name = f"sqlite:///{save_dir}/optuna_study.db"
+    if storage_url and storage_url.startswith("journal:"):
+        from optuna.storages import JournalStorage
+        try:
+            from optuna.storages import JournalFileBackend
+        except ImportError:
+            from optuna.storages import JournalFileStorage as JournalFileBackend  # Optuna <3.1
+        journal_path = storage_url[len("journal:"):]
+        storage_name = JournalStorage(JournalFileBackend(journal_path))
+        storage_label = f"JournalFile ({journal_path}) — multi-process safe"
+    else:
+        storage_name = storage_url or f"sqlite:///{save_dir}/optuna_study.db"
+        storage_label = "RDB (distributed)" if storage_url else "SQLite (local)"
 
     dataset = fNIRSGraphDataset(
         root=data_dir,
@@ -487,6 +504,7 @@ def run_optuna(
 
     print(f"Experiment dir  : {save_dir}")
     print(f"Study name      : {study_name}")
+    print(f"Storage         : {storage_label}")
     print(f"Eval strategy   : {eval_strategy}" + (f" ({inner_folds}-fold)" if eval_strategy == "kfold" else ""))
     print(f"Dataset size    : {len(dataset)} graphs")
     print(f"Device          : {device}")
@@ -592,5 +610,7 @@ if __name__ == "__main__":
                    help="Inner folds for kfold strategy: 3 (lightweight) or 5 (full)")
     p.add_argument("--splits_json", type=str, default=None,
                    help="Path to pre-defined splits JSON (required for --eval_strategy kfold)")
+    p.add_argument("--storage_url", type=str, default=None,
+                   help="PostgreSQL/MySQL URL for distributed multi-machine runs (e.g. postgresql://user:pass@host:5432/optuna). Omit to use local SQLite.")
     args = p.parse_args()
     run_optuna(**vars(args))

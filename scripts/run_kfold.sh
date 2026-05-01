@@ -27,16 +27,16 @@ REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 CONFIG="$REPO_ROOT/src/core/experiment_config.yaml"
 DATE_TAG="$(date +%Y%m%d)"
 BASE_SAVE="$REPO_ROOT/research/experiments/$DATE_TAG/kfold"
-DATA_DIR="$REPO_ROOT/data/processed-new"
-SPLITS_JSON="$REPO_ROOT/data/splits/kfold_splits_processed_new.json"
+DATA_DIR="$REPO_ROOT/data/processed-new-mc"
+SPLITS_JSON="$REPO_ROOT/data/splits/kfold_splits_processed_new_mc.json"
 
 # Training settings (max_trials and model/graph params come from experiment_config.yaml)
 EPOCHS=150
-LR=1e-3
+LR=6.79e-03
 BATCH_SIZE=8
 PATIENCE=9999
 SEED=42
-NUM_WORKERS=4
+NUM_WORKERS=0
 
 CHECKPOINT_METRIC="f1"
 DATA_TYPES=()
