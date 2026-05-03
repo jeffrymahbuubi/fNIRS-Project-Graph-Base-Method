@@ -1,0 +1,80 @@
+task:
+  name: fnirs-st-temporal-search
+  description: |
+    Find the best temporal module for WindowedSpatioTemporalGATNet on fNIRS
+    anxiety vs healthy classification (GNG task, HBO signal, mt4 windows).
+
+    Context:
+    - Dataset: 62 subjects (29 anxiety / 33 healthy), GNG cognitive task, HBO signal
+    - Architecture: GATv2 spatial encoder (shared across K windows) → temporal module → classifier
+    - Validation: 5-fold cross-validation (subject-level, pre-defined splits)
+
+    SPATIAL ENCODER IS LOCKED — do NOT change these:
+      n_layers=2, n_filters=80, heads=2
+      use_residual=False, use_norm=True, norm_type="batch"
+
+    WINDOWING IS LOCKED at mt4:
+      window_size=16, window_stride=8
+
+    CURRENT BASELINE: 5-fold CV mean F1 = 0.7792 (GRU, Optuna Trial #91, HBO mt4)
+
+    PRIMARY SEARCH TARGET (temporal_type in solution.py):
+      "gru"         — baseline (GRU + additive attention)
+      "lstm"        — LSTM + additive attention
+      "bigru"       — Bidirectional GRU + additive attention
+      "transformer" — Transformer encoder + mean pooling
+      "tcn"         — Temporal Convolutional Network + last-step readout
+
+    SECONDARY — tune per temporal_type:
+      temporal_hidden [32..256, step=32]   — hidden dimensionality
+      temporal_layers [1..3]               — depth
+      Transformer: transformer_heads {2,4,8}, ffn_ratio {2,4}
+      TCN: tcn_kernel_size {3,5,7}, tcn_dilation_base {1,2}
+      dropout [0.1..0.5], fc_size [32..256], learning_rate [1e-5..1e-1]
+
+    File layout:
+      solution.py    — defines run(data_dir) -> float (5-fold mean F1)
+      core/models.py — temporal module factory: GRUTemporal, LSTMTemporal,
+                       BiGRUTemporal, TransformerTemporal, TCNTemporal
+      core/dataset.py, training.py, transforms.py, utils.py — do NOT modify
+
+  tips: |
+    - Metric is mean 5-fold validation F1 (higher is better, 0–1 scale)
+    - Baseline F1 = 0.7792 with GRU — beat this to claim an improvement
+    - Spatial encoder is FIXED — never change n_layers, n_filters, or heads
+    - Start each new temporal_type with temporal_hidden=192 (Optuna best for GRU)
+    - Transformer: temporal_hidden must be divisible by transformer_heads
+      (all values in [32..256 step=32] are divisible by 8 — safe to use any {2,4,8})
+    - BiGRU: GRU hidden_size=temporal_hidden//2 so fwd+bwd concat = temporal_hidden
+    - TCN: Conv1d is channels-first [B,H,K] — transpose seq in forward()
+    - lr=0.000635 was tuned for GRU; Transformer often needs lower (1e-4 to 5e-4)
+    - TCN often needs higher lr than RNNs (1e-3 to 5e-3)
+    - Each eval is ~5 min (5-fold × ~1 min/fold) — grader timeout is 600s
+    - After finding the best temporal_type, verify improvement with 2+ temporal_hidden
+      values before reporting as a validated finding
+    - Commit with coral eval after each config that beats baseline F1
+
+grader:
+  timeout: 600
+  direction: maximize
+  args:
+    data_dir: "/home/user/jeffrymahbuubi/PROJECTS/2-fNIRS-Graph-Base-Method/data/processed-new-mc"
+    python_executable: "/home/user/jeffrymahbuubi/PROJECTS/2-fNIRS-Graph-Base-Method/src/.venv/bin/python"
+    program_file: "solution.py"
+
+agents:
+  count: 3
+  runtime: claude_code
+  model: sonnet
+  max_turns: 100
+  warmstart:
+    enabled: false
+
+workspace:
+  results_dir: "/home/user/jeffrymahbuubi/PROJECTS/2-fNIRS-Graph-Base-Method/coral/fnirs_st/results"
+  repo_path: "/home/user/jeffrymahbuubi/PROJECTS/2-fNIRS-Graph-Base-Method/coral/fnirs_st/seed"
+
+run:
+  verbose: true
+  ui: true
+  session: tmux

@@ -211,6 +211,39 @@ tmux attach -t coral-fnirs-gat-hbo-optimization-<timestamp>
 tmux ls
 ```
 
+### Accessing the UI from a Remote Machine (Tailscale / SSH)
+
+The CORAL UI server binds to `127.0.0.1:8420` (loopback only). Opening `http://127.0.0.1:8420/` in a browser on your **Mac** hits the Mac's own localhost — not the remote server — and will load indefinitely.
+
+**Fix: SSH port forward from your Mac terminal**
+
+```bash
+ssh -L 8420:127.0.0.1:8420 user@<tailscale-ip>
+# e.g.: ssh -L 8420:127.0.0.1:8420 user@100.115.115.16
+```
+
+Then open `http://127.0.0.1:8420/` in your Mac browser. The tunnel forwards Mac port 8420 → remote port 8420.
+
+**If you get `bind: Address already in use`**, stale SSH tunnel processes are holding the port on your Mac. Either:
+
+```bash
+# Option A: kill the stale processes on Mac, then reconnect
+lsof -ti:8420 | xargs kill -9
+
+# Option B: use a different local port (no cleanup needed)
+ssh -L 9090:127.0.0.1:8420 user@<tailscale-ip>
+# then open http://127.0.0.1:9090/ instead
+```
+
+Stale tunnel processes often release on their own after ~30–60 seconds of being blocked — retrying after a short wait also works.
+
+**Verify the backend is live** before debugging the UI:
+
+```bash
+curl http://127.0.0.1:8420/api/status
+# Should return JSON with manager_alive, agents, best_score, etc.
+```
+
 ### Stopping
 
 ```bash

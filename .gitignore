@@ -98,6 +98,7 @@ research/experiments
 
 # ─── CORAL runtime output (nested git repos created by CORAL at run time) ────
 coral/fnirs_gat/results/
+coral/fnirs_st/results/
 
 # ─── Jupyter session state & checkpoints ─────────────────────────────────────
 .jupyter/

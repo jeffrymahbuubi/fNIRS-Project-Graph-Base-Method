@@ -30,15 +30,15 @@ REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 CONFIG="$REPO_ROOT/src/core_st/experiment_config.yaml"
 DATE_TAG="$(date +%Y%m%d)"
 BASE_SAVE="$REPO_ROOT/research/experiments/$DATE_TAG/st-loso"
-DATA_DIR="$REPO_ROOT/data/processed-new"
+DATA_DIR="$REPO_ROOT/data/processed-new-mc"
 
 # Optuna best-trial fixed settings
-LR=1.375e-4
-EPOCHS=100
+LR=0.000635
+EPOCHS=150
 BATCH_SIZE=8
-PATIENCE=9999
+PATIENCE=30
 SEED=42
-NUM_WORKERS=0
+NUM_WORKERS=4
 
 CHECKPOINT_METRIC="f1"
 DATA_TYPES=()
