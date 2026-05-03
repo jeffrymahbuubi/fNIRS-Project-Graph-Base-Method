@@ -10,10 +10,12 @@
 #   # No MySQL/PostgreSQL needed — JournalFileBackend uses a shared log file.
 #
 # Usage:
-#   bash scripts/run_optuna_multigpu_st.sh               # auto-detect GPUs
-#   bash scripts/run_optuna_multigpu_st.sh 4             # use 4 GPUs
-#   bash scripts/run_optuna_multigpu_st.sh 4 hbo         # 4 GPUs, HBO signal
-#   bash scripts/run_optuna_multigpu_st.sh 4 hbo kfold   # 4 GPUs, HBO, kfold
+#   bash scripts/run_optuna_multigpu_st.sh                           # auto-detect GPUs (lr_cosine search)
+#   bash scripts/run_optuna_multigpu_st.sh 4                         # 4 GPUs, lr_cosine search
+#   bash scripts/run_optuna_multigpu_st.sh 4 hbo                     # 4 GPUs, HBO signal
+#   bash scripts/run_optuna_multigpu_st.sh 4 hbo kfold               # 4 GPUs, HBO, kfold, lr_cosine (default)
+#   bash scripts/run_optuna_multigpu_st.sh 4 hbo kfold lr_cosine     # 4 GPUs, LR-only CosineAnnealingLR search
+#   bash scripts/run_optuna_multigpu_st.sh 4 hbo kfold full          # 4 GPUs, original 13-param full search
 
 set -euo pipefail
 
@@ -26,8 +28,13 @@ cd "$REPO_ROOT"
 N_GPUS="${1:-$(nvidia-smi --query-gpu=name --format=csv,noheader 2>/dev/null | wc -l)}"
 DATA_TYPE="${2:-hbo}"
 EVAL_STRATEGY="${3:-kfold}"
+SEARCH_TYPE="${4:-lr_cosine}"   # lr_cosine (default) | full (original 13-param search)
 INNER_FOLDS=5
-N_TRIALS=150
+# --- lr_cosine: LR-only search under CosineAnnealingLR, CORAL best architecture locked ---
+# 3 params (learning_rate, T_max, eta_min); 75 trials sufficient; ~4h 1-GPU, ~1h 4-GPU
+N_TRIALS=25
+# --- full: original 13-param search (uncomment and comment above to revert) ---
+# N_TRIALS=150
 N_EPOCHS=100
 MAX_TRIALS=4
 EARLY_STOP_PATIENCE=15
@@ -60,10 +67,10 @@ echo "=============================================="
 echo "Multi-GPU Optuna ST Search"
 echo "  GPUs         : $N_GPUS"
 echo "  Signal       : $DATA_TYPE"
+echo "  Search type  : $SEARCH_TYPE"
 echo "  Strategy     : $EVAL_STRATEGY (inner_folds=$INNER_FOLDS)"
 echo "  Trials       : $N_TRIALS  Epochs: $N_EPOCHS"
-echo "  Storage      : $JOURNAL_FILE (JournalFi
-le)"
+echo "  Storage      : $JOURNAL_FILE (JournalFile)"
 echo "  Logs         : $LOG_DIR"
 echo "=============================================="
 echo ""
@@ -79,6 +86,7 @@ COMMON_ARGS=(
     --n_epochs "$N_EPOCHS"
     --num_workers "$NUM_WORKERS"
     --eval_strategy "$EVAL_STRATEGY"
+    --search_type "$SEARCH_TYPE"
     --early_stop_patience "$EARLY_STOP_PATIENCE"
     --update_interval 10
     --storage_url "$STORAGE_URL"
@@ -135,7 +143,8 @@ fi
 echo "=============================================="
 echo ""
 
-STUDY_NAME="st_${DATA_TYPE}_mt${MAX_TRIALS}_ep${N_EPOCHS}_tr${N_TRIALS}_kf${INNER_FOLDS}"
+SEARCH_SUFFIX=$([ "$SEARCH_TYPE" = "lr_cosine" ] && echo "_lr_cosine" || echo "")
+STUDY_NAME="st_${DATA_TYPE}_mt${MAX_TRIALS}_ep${N_EPOCHS}_tr${N_TRIALS}_kf${INNER_FOLDS}${SEARCH_SUFFIX}"
 echo "Inspect results:"
 cat <<PYEOF
   python -c "

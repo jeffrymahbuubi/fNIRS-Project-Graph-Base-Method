@@ -6,6 +6,7 @@ from typing import Any, Dict, Optional
 import torch
 import yaml
 from torch import optim
+from torch.optim.lr_scheduler import CosineAnnealingLR, ReduceLROnPlateau
 
 from .config import ExperimentConfig, SystemConfig, load_config, save_config, setup_system
 from .dataset import fNIRSGraphDataset
@@ -42,6 +43,9 @@ def build_parser() -> ArgumentParser:
     p.add_argument("--patience", type=int, default=10)
     p.add_argument("--checkpoint_metric", type=str, default="f1", choices=["f1", "loss"],
                    help="Metric used for checkpoint saving and early stopping: 'f1' (best val F1) or 'loss' (lowest val loss)")
+    p.add_argument("--scheduler", type=str, default="cosine_annealing",
+                   choices=["cosine_annealing", "cosine_warmup", "reduce_on_plateau"],
+                   help="LR scheduler (default: cosine_annealing, CORAL-validated best)")
     p.add_argument("--use_class_weights", action="store_true")
     p.add_argument("--sqrt_class_weights", action="store_true")
     p.add_argument("--use_focal_loss", action="store_true")
@@ -133,6 +137,7 @@ def _args_to_config(args, yaml_cfg: Dict[str, Any]) -> ExperimentConfig:
         lr=args.lr,
         patience=args.patience,
         checkpoint_metric=args.checkpoint_metric,
+        scheduler=pick(args.scheduler, "scheduler", "cosine_annealing"),
         use_class_weights=args.use_class_weights,
         sqrt_class_weights=args.sqrt_class_weights,
         use_focal_loss=args.use_focal_loss,
@@ -226,8 +231,15 @@ def main() -> None:
 
     optimizer_class = optim.Adam
     optimizer_params = {"lr": cfg.lr}
-    scheduler_class = CosineWarmupScheduler
-    scheduler_params = {"warmup": 5, "max_iters": cfg.epochs}
+    if cfg.scheduler == "cosine_annealing":
+        scheduler_class = CosineAnnealingLR
+        scheduler_params = {"T_max": cfg.epochs, "eta_min": 0}
+    elif cfg.scheduler == "cosine_warmup":
+        scheduler_class = CosineWarmupScheduler
+        scheduler_params = {"warmup": 5, "max_iters": cfg.epochs}
+    else:  # reduce_on_plateau
+        scheduler_class = ReduceLROnPlateau
+        scheduler_params = {"mode": "max", "factor": 0.5, "patience": 5}
 
     shared = dict(
         model=model,

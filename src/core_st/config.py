@@ -46,6 +46,7 @@ class ExperimentConfig:
     lr: float = 1e-3
     patience: int = 10
     checkpoint_metric: str = "f1"
+    scheduler: str = "cosine_annealing"
     use_class_weights: bool = False
     sqrt_class_weights: bool = False
     use_focal_loss: bool = False

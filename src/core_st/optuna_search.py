@@ -103,6 +103,42 @@ def design_search_space_st(trial: optuna.Trial, use_fl: bool = False) -> Dict:
     }
 
 
+def design_search_space_lr_cosine_st(trial: optuna.Trial) -> Dict:
+    """
+    Minimal search space: only learning rate and CosineAnnealingLR schedule params.
+    All architecture params are locked to the CORAL-validated best (fnirs-st-temporal-search,
+    2026-05-02, 131 attempts, F1=0.8721).
+
+    Use after the full architecture search is settled and you only need to find the
+    optimal LR under CosineAnnealingLR. The current Optuna-best lr=0.000635 was found
+    under ReduceLROnPlateau and may not be optimal for CosineAnnealingLR.
+    """
+    learning_rate = trial.suggest_float("learning_rate", 1e-5, 1e-1, log=True)
+    T_max = trial.suggest_categorical("T_max", [50, 100, 150, 200])
+    eta_min = trial.suggest_categorical("eta_min", [0.0, 1e-6, 1e-5])
+    return {
+        # Architecture locked to CORAL best
+        "window_size": 16,
+        "window_stride": 8,
+        "n_layers": 2,
+        "n_filters": 80,
+        "heads": 2,
+        "temporal_hidden": 192,
+        "temporal_layers": 1,
+        "dropout": 0.30,
+        "fc_size": 256,
+        "use_residual": False,
+        "use_norm": True,
+        "norm_type": "batch",
+        "focal_alpha": None,
+        "focal_gamma": None,
+        # Searched
+        "learning_rate": learning_rate,
+        "T_max": T_max,
+        "eta_min": eta_min,
+    }
+
+
 # ---------------------------------------------------------------------------
 # Shared training helpers
 # ---------------------------------------------------------------------------
@@ -151,7 +187,10 @@ def _train_single_run_st(
             model, val_loader, loss_fn, device,
             epoch=epoch, n_epochs=n_epochs, verbose=False,
         )
-        scheduler.step(vl_f1)
+        if isinstance(scheduler, torch.optim.lr_scheduler.ReduceLROnPlateau):
+            scheduler.step(vl_f1)
+        else:
+            scheduler.step()
 
         if trial is not None:
             trial.report(vl_f1, step_offset + epoch)
@@ -437,6 +476,157 @@ def objective_kfold_st(
 
 
 # ---------------------------------------------------------------------------
+# LR-only objectives for CosineAnnealingLR (post-CORAL architecture lock)
+# ---------------------------------------------------------------------------
+
+def objective_lr_cosine_st(
+    dataset: fNIRSGraphDataset,
+    stats: Dict,
+    trial: optuna.Trial,
+    n_epochs: int,
+    device: torch.device,
+    early_stop_patience: int = 10,
+    num_workers: int = 0,
+) -> float:
+    """
+    Holdout objective: searches only LR/T_max/eta_min under CosineAnnealingLR
+    with architecture locked to CORAL best. Use --search_type lr_cosine.
+    """
+    hparams = design_search_space_lr_cosine_st(trial)
+
+    val_transform = get_transforms(stats, augment=False)
+    train_loader, val_loader = get_holdout_loaders(
+        dataset,
+        batch_size=8,
+        shuffle_train=True,
+        num_workers=num_workers,
+        pin_memory=True,
+        val_ratio=0.2,
+        random_state=42,
+        train_transform=val_transform,
+        val_transform=val_transform,
+        verbose=False,
+    )
+
+    model = _build_model_st(hparams, device)
+    total_params = sum(p.numel() for p in model.parameters())
+    trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+
+    loss_fn = torch.nn.CrossEntropyLoss()
+    optimizer = torch.optim.Adam(model.parameters(), lr=hparams["learning_rate"])
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+        optimizer, T_max=hparams["T_max"], eta_min=hparams["eta_min"]
+    )
+
+    _, best_epoch, train_f1_at_best, train_acc_at_best, best_model_state = (
+        _train_single_run_st(
+            model, train_loader, val_loader, loss_fn, optimizer, scheduler,
+            device, n_epochs, early_stop_patience,
+            trial=trial, step_offset=0,
+        )
+    )
+
+    if best_model_state is not None:
+        model.load_state_dict({k: v.to(device) for k, v in best_model_state.items()})
+
+    final_loss, final_acc, final_f1, final_prec, final_sens, final_spec, *_ = evaluate(
+        model, val_loader, loss_fn, device, verbose=False
+    )
+
+    trial.set_user_attr("val_accuracy", final_acc)
+    trial.set_user_attr("val_loss", final_loss)
+    trial.set_user_attr("val_f1", final_f1)
+    trial.set_user_attr("val_precision", final_prec)
+    trial.set_user_attr("val_sensitivity", final_sens)
+    trial.set_user_attr("val_specificity", final_spec)
+    trial.set_user_attr("train_f1", train_f1_at_best)
+    trial.set_user_attr("train_accuracy", train_acc_at_best)
+    trial.set_user_attr("total_params", total_params)
+    trial.set_user_attr("trainable_params", trainable_params)
+    trial.set_user_attr("best_epoch", best_epoch)
+
+    return final_f1
+
+
+def objective_kfold_lr_cosine_st(
+    dataset: fNIRSGraphDataset,
+    stats: Dict,
+    trial: optuna.Trial,
+    n_epochs: int,
+    device: torch.device,
+    splits_json: str,
+    inner_folds: int = 3,
+    early_stop_patience: int = 10,
+    num_workers: int = 0,
+) -> float:
+    """
+    Inner k-fold CV variant of objective_lr_cosine_st. More robust than holdout.
+    Requires splits_json. Use --search_type lr_cosine --eval_strategy kfold.
+    """
+    hparams = design_search_space_lr_cosine_st(trial)
+    loss_fn = torch.nn.CrossEntropyLoss()
+    transform = get_transforms(stats, augment=False)
+
+    fold_data = get_kfold_loaders_from_json(
+        dataset,
+        splits_json=splits_json,
+        n_splits=inner_folds,
+        batch_size=8,
+        shuffle_train=True,
+        num_workers=num_workers,
+        pin_memory=True,
+        train_transform=transform,
+        val_transform=transform,
+        verbose=False,
+    )
+
+    fold_f1_scores: List[float] = []
+    fold_best_epochs: List[int] = []
+    total_params: Optional[int] = None
+    trainable_params: Optional[int] = None
+
+    for fold_idx in range(len(fold_data)):
+        train_loader, val_loader = fold_data[fold_idx]
+        fold_data[fold_idx] = None
+
+        model = _build_model_st(hparams, device)
+
+        if total_params is None:
+            total_params = sum(p.numel() for p in model.parameters())
+            trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+
+        optimizer = torch.optim.Adam(model.parameters(), lr=hparams["learning_rate"])
+        scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+            optimizer, T_max=hparams["T_max"], eta_min=hparams["eta_min"]
+        )
+
+        _, best_epoch, _, _, best_model_state = _train_single_run_st(
+            model, train_loader, val_loader, loss_fn, optimizer, scheduler,
+            device, n_epochs, early_stop_patience,
+            trial=trial, step_offset=fold_idx * n_epochs,
+        )
+
+        if best_model_state is not None:
+            model.load_state_dict({k: v.to(device) for k, v in best_model_state.items()})
+
+        _, _, final_f1, *_ = evaluate(model, val_loader, loss_fn, device, verbose=False)
+
+        fold_f1_scores.append(final_f1)
+        fold_best_epochs.append(best_epoch)
+        del train_loader, val_loader
+
+    mean_f1 = sum(fold_f1_scores) / len(fold_f1_scores)
+
+    trial.set_user_attr("val_f1_per_fold", fold_f1_scores)
+    trial.set_user_attr("best_epoch_per_fold", fold_best_epochs)
+    trial.set_user_attr("mean_val_f1", mean_f1)
+    trial.set_user_attr("total_params", total_params)
+    trial.set_user_attr("trainable_params", trainable_params)
+
+    return mean_f1
+
+
+# ---------------------------------------------------------------------------
 # Study runner  (mirrors notebook Section 3.4.2)
 # ---------------------------------------------------------------------------
 
@@ -458,6 +648,7 @@ def run_optuna_st(
     inner_folds: int = 3,
     splits_json: Optional[str] = None,
     storage_url: Optional[str] = None,
+    search_type: str = "full",
 ) -> optuna.Study:
     """
     Initialize and run an Optuna study for the ST pipeline.
@@ -483,6 +674,7 @@ def run_optuna_st(
         f"st_{data_type}_mt{max_tag}_ep{n_epochs}_tr{n_trials}"
         + kfold_tag
         + ("_fl" if use_fl else "")
+        + ("_lr_cosine" if search_type == "lr_cosine" else "")
     )
     save_dir = get_experiment_dir(
         experiment_name=study_name, base_dir=base_dir, overwrite=False
@@ -514,6 +706,7 @@ def run_optuna_st(
     print(f"Experiment dir  : {save_dir}")
     print(f"Study name      : {study_name}")
     print(f"Storage         : {storage_label}")
+    print(f"Search type     : {search_type}")
     print(f"Eval strategy   : {eval_strategy}" + (f" ({inner_folds}-fold)" if eval_strategy == "kfold" else ""))
     print(f"Dataset size    : {len(dataset)} graphs")
     print(f"Device          : {device}")
@@ -544,7 +737,22 @@ def run_optuna_st(
         load_if_exists=True,
     )
 
-    if eval_strategy == "holdout":
+    if search_type == "lr_cosine":
+        if eval_strategy == "holdout":
+            obj_fn = lambda trial: objective_lr_cosine_st(
+                dataset, stats, trial, n_epochs, device,
+                early_stop_patience=early_stop_patience,
+                num_workers=num_workers,
+            )
+        else:
+            obj_fn = lambda trial: objective_kfold_lr_cosine_st(
+                dataset, stats, trial, n_epochs, device,
+                splits_json=splits_json,
+                inner_folds=inner_folds,
+                early_stop_patience=early_stop_patience,
+                num_workers=num_workers,
+            )
+    elif eval_strategy == "holdout":
         obj_fn = lambda trial: objective_st(
             dataset, stats, trial, n_epochs, device,
             use_fl=use_fl,
@@ -616,5 +824,7 @@ if __name__ == "__main__":
                    help="Path to pre-defined splits JSON (required for --eval_strategy kfold)")
     p.add_argument("--storage_url", type=str, default=None,
                    help="PostgreSQL/MySQL URL for distributed multi-machine runs (e.g. postgresql://user:pass@host:5432/optuna). Omit to use local SQLite.")
+    p.add_argument("--search_type", default="full", choices=["full", "lr_cosine"],
+                   help="full: original 13-param search; lr_cosine: LR-only search under CosineAnnealingLR with CORAL-locked architecture")
     args = p.parse_args()
     run_optuna_st(**vars(args))

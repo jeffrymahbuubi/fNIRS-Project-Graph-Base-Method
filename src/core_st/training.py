@@ -283,7 +283,10 @@ def _run_fold(model, optimizer, scheduler, train_loader, val_loader, device,
         if early_stopper(monitor_val, epoch):
             break
         if scheduler is not None:
-            scheduler.step()
+            if isinstance(scheduler, torch.optim.lr_scheduler.ReduceLROnPlateau):
+                scheduler.step(monitor_val)
+            else:
+                scheduler.step()
 
     return history, best_epoch, best_model_state
 
