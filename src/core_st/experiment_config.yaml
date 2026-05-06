@@ -41,6 +41,12 @@ temporal:
   temporal_layers: 1     # number of GRU layers  [Optuna best: was 1]
 
 # ---------------------------------------------------------------------------
+# Training (LR scheduler — CORAL-validated default)
+# ---------------------------------------------------------------------------
+training:
+  scheduler: cosine_annealing   # cosine_annealing | cosine_warmup | reduce_on_plateau
+
+# ---------------------------------------------------------------------------
 # Augmentation (applied to training set only)
 # ---------------------------------------------------------------------------
 augmentation:

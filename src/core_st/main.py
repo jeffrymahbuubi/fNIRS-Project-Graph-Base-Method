@@ -43,9 +43,11 @@ def build_parser() -> ArgumentParser:
     p.add_argument("--patience", type=int, default=10)
     p.add_argument("--checkpoint_metric", type=str, default="f1", choices=["f1", "loss"],
                    help="Metric used for checkpoint saving and early stopping: 'f1' (best val F1) or 'loss' (lowest val loss)")
-    p.add_argument("--scheduler", type=str, default="cosine_annealing",
+    p.add_argument("--scheduler", type=str, default=None,
                    choices=["cosine_annealing", "cosine_warmup", "reduce_on_plateau"],
                    help="LR scheduler (default: cosine_annealing, CORAL-validated best)")
+    p.add_argument("--eta_min", type=float, default=1e-5,
+                   help="CosineAnnealingLR eta_min (default: 1e-5, Optuna lr_cosine best Trial #36)")
     p.add_argument("--use_class_weights", action="store_true")
     p.add_argument("--sqrt_class_weights", action="store_true")
     p.add_argument("--use_focal_loss", action="store_true")
@@ -233,7 +235,7 @@ def main() -> None:
     optimizer_params = {"lr": cfg.lr}
     if cfg.scheduler == "cosine_annealing":
         scheduler_class = CosineAnnealingLR
-        scheduler_params = {"T_max": cfg.epochs, "eta_min": 0}
+        scheduler_params = {"T_max": cfg.epochs, "eta_min": args.eta_min}
     elif cfg.scheduler == "cosine_warmup":
         scheduler_class = CosineWarmupScheduler
         scheduler_params = {"warmup": 5, "max_iters": cfg.epochs}
