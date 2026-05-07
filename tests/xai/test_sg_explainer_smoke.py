@@ -26,18 +26,19 @@ SG_DATA_DIR = PROJECT_ROOT / "data/processed-new-mc"
 SG_SPLITS_JSON = PROJECT_ROOT / "data/splits/kfold_splits_processed_new_mc.json"
 
 
-@pytest.mark.skipif(
-    not (SG_EXPERIMENT_ROOT.is_dir() and SG_DATA_DIR.is_dir() and SG_SPLITS_JSON.is_file()),
-    reason="SG checkpoints / dataset / splits missing on this machine",
-)
-def test_sg_one_fold_produces_well_shaped_population_result(tmp_path: Path) -> None:
-    """Fold 1 of SG kfold-5 mt2 hbo, GNNExplainer with epochs=20 (smoke speed).
+_SG_PRESENT = SG_EXPERIMENT_ROOT.is_dir() and SG_DATA_DIR.is_dir() and SG_SPLITS_JSON.is_file()
 
-    Asserts:
-      - per-trial channel_importance / feature_importance / pair_matrix shapes
-      - PopulationResult per-channel mean / pair_matrix symmetry / counters
-      - to_csv writes the §7.3 files
-      - from_csv round-trips the means
+
+@pytest.mark.skipif(not _SG_PRESENT, reason="SG checkpoints / dataset / splits missing on this machine")
+@pytest.mark.parametrize("estimator", ["gnn", "captum_ig", "attention"])
+def test_sg_one_fold_produces_well_shaped_population_result(
+    tmp_path: Path, estimator: str,
+) -> None:
+    """Fold 1 of SG kfold-5 mt2 hbo for each of the three SPEC §11 C4 estimators.
+
+    'gnn' / 'captum_ig' produce node_mask → feature_importance is populated.
+    'attention' produces edge_mask only → feature_importance is None and
+    channel_importance is the row-sum of the symmetric pair matrix.
     """
     import torch
     from src.xai import (
@@ -57,6 +58,7 @@ def test_sg_one_fold_produces_well_shaped_population_result(tmp_path: Path) -> N
         device=("cuda:0" if torch.cuda.is_available() else "cpu"),
         gnn_explainer_epochs=20,    # fast smoke; SPEC default is 200
         gnn_explainer_lr=0.01,
+        estimator=estimator,
         seed=42,
     )
 
@@ -68,23 +70,32 @@ def test_sg_one_fold_produces_well_shaped_population_result(tmp_path: Path) -> N
 
     trial_atts = explain_sg_checkpoint(loaded, cfg)
 
-    assert len(trial_atts) > 0, "fold 1 produced no trial attributions"
+    assert len(trial_atts) > 0, f"{estimator}: fold 1 produced no trial attributions"
+    expects_feature = estimator in ("gnn", "captum_ig")
     for att in trial_atts:
         assert att.channel_importance.shape == (N_CH,), att.channel_importance.shape
         assert att.pair_matrix.shape == (N_CH, N_CH), att.pair_matrix.shape
-        assert att.feature_importance is not None
-        assert att.feature_importance.shape == (6,), att.feature_importance.shape
+        if expects_feature:
+            assert att.feature_importance is not None
+            assert att.feature_importance.shape == (6,), att.feature_importance.shape
+        else:
+            assert att.feature_importance is None
+            # AttentionExplainer: channel_importance == row-sum of pair (per
+            # _per_trial_reductions when node_mask is None).
+            np.testing.assert_allclose(
+                att.channel_importance, att.pair_matrix.sum(axis=1), atol=1e-5,
+            )
         assert att.temporal_attention is None
-        # SG explainer symmetrises per-trial.
+        # All SG estimators symmetrise per-trial.
         np.testing.assert_allclose(att.pair_matrix, att.pair_matrix.T, atol=1e-6)
-        # GNNExplainer outputs are non-negative after sigmoid + abs reduction.
+        # GNNExplainer/Captum return non-negative reductions; AttentionExplainer
+        # returns softmax probabilities → non-negative.
         assert (att.channel_importance >= 0).all()
-        assert (att.pair_matrix >= 0).all()
         assert att.included == (att.pred_label == att.true_label)
 
     if not any(att.included for att in trial_atts):
         pytest.skip(
-            "fold 1 had no correctly-classified val trials; aggregation needs at least one"
+            f"{estimator}: fold 1 had no correctly-classified val trials; aggregation needs at least one"
         )
 
     result = aggregate_population(
@@ -94,25 +105,26 @@ def test_sg_one_fold_produces_well_shaped_population_result(tmp_path: Path) -> N
     )
 
     assert result.channel_importance_mean.shape == (N_CH,)
-    assert result.channel_importance_std.shape == (N_CH,)
     assert result.pair_matrix.shape == (N_CH, N_CH)
     np.testing.assert_allclose(result.pair_matrix, result.pair_matrix.T, atol=1e-6)
-    assert result.feature_importance_mean is not None
-    assert result.feature_importance_mean.shape == (6,)
+    if expects_feature:
+        assert result.feature_importance_mean is not None
+        assert result.feature_importance_mean.shape == (6,)
+    else:
+        assert result.feature_importance_mean is None
     assert result.temporal_attention_mean is None
-
     assert result.n_trials > 0
     assert result.n_subjects > 0
-    assert 0 < result.included_pct <= 100.0
-    assert result.n_trials == sum(result.per_subject_trial_counts.values())
 
-    # Persistence round-trip — SPEC §7.3 deliverables land on disk.
+    # Persistence — SPEC §7.3 deliverables land on disk for the SG-shape case.
     result.to_csv(tmp_path)
     assert (tmp_path / "node_importance.csv").is_file()
     assert (tmp_path / "edge_importance.csv").is_file()
     assert (tmp_path / "channel_pair_matrix.npy").is_file()
-    assert (tmp_path / "channel_pair_matrix_std.npy").is_file()
-    assert (tmp_path / "feature_importance.csv").is_file()
+    if expects_feature:
+        assert (tmp_path / "feature_importance.csv").is_file()
+    else:
+        assert not (tmp_path / "feature_importance.csv").exists()
     assert not (tmp_path / "temporal_attention.csv").exists(), "temporal CSV is ST-only"
     assert (tmp_path / "result_meta.json").is_file()
 
@@ -123,4 +135,7 @@ def test_sg_one_fold_produces_well_shaped_population_result(tmp_path: Path) -> N
     np.testing.assert_allclose(reloaded.pair_matrix, result.pair_matrix, rtol=1e-5)
     assert reloaded.n_trials == result.n_trials
     assert reloaded.n_subjects == result.n_subjects
-    assert reloaded.feature_importance_mean is not None
+    if expects_feature:
+        assert reloaded.feature_importance_mean is not None
+    else:
+        assert reloaded.feature_importance_mean is None

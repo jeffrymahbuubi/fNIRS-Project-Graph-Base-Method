@@ -23,10 +23,10 @@ ST_DATA_DIR = PROJECT_ROOT / "data/processed-new-mc"
 ST_SPLITS_JSON = PROJECT_ROOT / "data/splits/kfold_splits_processed_new_mc.json"
 
 
-@pytest.mark.skipif(
-    not (ST_EXPERIMENT_ROOT.is_dir() and ST_DATA_DIR.is_dir() and ST_SPLITS_JSON.is_file()),
-    reason="ST checkpoints / dataset / splits missing on this machine",
-)
+_ST_PRESENT = ST_EXPERIMENT_ROOT.is_dir() and ST_DATA_DIR.is_dir() and ST_SPLITS_JSON.is_file()
+
+
+@pytest.mark.skipif(not _ST_PRESENT, reason="ST checkpoints / dataset / splits missing on this machine")
 def test_st_one_fold_produces_well_shaped_population_result(tmp_path: Path) -> None:
     """Fold 1 of ST kfold-5 mt2 hbo via native attention extraction.
 
@@ -144,3 +144,60 @@ def test_st_one_fold_produces_well_shaped_population_result(tmp_path: Path) -> N
     )
     assert reloaded.feature_importance_mean is None
     assert reloaded.temporal_attention_mean is not None
+
+
+@pytest.mark.skipif(not _ST_PRESENT, reason="ST checkpoints / dataset / splits missing on this machine")
+def test_st_supplementary_gnn_object_one_fold(tmp_path: Path) -> None:
+    """SPEC §6.4 supplementary path — GNNExplainer with object masks on ST.
+
+    Asserts the [23] node_mask shape (not [23, 326]), pair_matrix symmetry,
+    and that no temporal_attention / feature_importance leak through.
+    """
+    import torch
+    from src.xai import (
+        XAIRunConfig,
+        aggregate_population,
+        discover_checkpoints,
+        load_checkpoint,
+        explain_st_supplementary_checkpoint,
+        N_CH,
+    )
+
+    cfg = XAIRunConfig(
+        arch="st", hb="hbo", regime="kfold-5", mt=2,
+        experiment_root=str(ST_EXPERIMENT_ROOT),
+        output_dir=str(tmp_path),
+        device=("cuda:0" if torch.cuda.is_available() else "cpu"),
+        gnn_explainer_epochs=20,    # smoke speed
+        gnn_explainer_lr=0.01,
+        run_supplementary_gnnexplainer=True,
+        seed=42,
+    )
+
+    infos = discover_checkpoints(
+        ST_EXPERIMENT_ROOT, arch="st", hb="hbo", regime="kfold-5", mt=2,
+    )
+    fold1 = next(i for i in infos if i.fold == 1)
+    loaded = load_checkpoint(fold1, cfg)
+
+    trial_atts = explain_st_supplementary_checkpoint(loaded, cfg)
+    assert len(trial_atts) > 0
+
+    for att in trial_atts:
+        assert att.channel_importance.shape == (N_CH,)
+        assert att.pair_matrix.shape == (N_CH, N_CH)
+        np.testing.assert_allclose(att.pair_matrix, att.pair_matrix.T, atol=1e-6)
+        assert att.feature_importance is None, "object mask has no per-feature breakdown"
+        assert att.temporal_attention is None, "supplementary path is ST-shape but channel-only"
+        assert att.window_times is None
+        assert (att.channel_importance >= 0).all()
+
+    if not any(att.included for att in trial_atts):
+        pytest.skip("fold 1 had no correctly-classified val trials")
+
+    result = aggregate_population(
+        trial_atts, arch="st", hb="hbo", regime="kfold-5", mt=2, only_included=True,
+    )
+    assert result.channel_importance_mean.shape == (N_CH,)
+    assert result.feature_importance_mean is None
+    assert result.temporal_attention_mean is None
