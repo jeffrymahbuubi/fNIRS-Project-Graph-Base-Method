@@ -27,6 +27,11 @@ from src.xai.aggregate import (
     PopulationResult,
     aggregate_population,
 )
+from src.xai.sg_explainer import (
+    ProbWrapper,
+    explain_checkpoint as explain_sg_checkpoint,
+    run_sg,
+)
 
 __all__ = [
     "CHANNEL_NAMES",
@@ -43,4 +48,7 @@ __all__ = [
     "TrialAttribution",
     "PopulationResult",
     "aggregate_population",
+    "ProbWrapper",
+    "explain_sg_checkpoint",
+    "run_sg",
 ]
