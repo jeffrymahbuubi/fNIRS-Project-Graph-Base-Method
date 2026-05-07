@@ -22,6 +22,11 @@ from src.xai.checkpoints import (
     discover_checkpoints,
     load_checkpoint,
 )
+from src.xai.aggregate import (
+    TrialAttribution,
+    PopulationResult,
+    aggregate_population,
+)
 
 __all__ = [
     "CHANNEL_NAMES",
@@ -35,4 +40,7 @@ __all__ = [
     "LoadedCheckpoint",
     "discover_checkpoints",
     "load_checkpoint",
+    "TrialAttribution",
+    "PopulationResult",
+    "aggregate_population",
 ]
