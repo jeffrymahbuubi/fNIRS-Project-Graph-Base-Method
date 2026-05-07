@@ -135,7 +135,7 @@ class PopulationResult:
             "n_subjects": [self.n_subjects] * N_CH,
             "rank": ranks,
         })
-        node_df.to_csv(out / self._NODE_CSV, index=False, float_format="%.6f")
+        node_df.to_csv(out / self._NODE_CSV, index=False, float_format="%.8f")
 
         # edge_importance.csv — top-K off-diagonal pairs (after symmetrisation,
         # both (i, j) and (j, i) carry the same value; keep only i < j).
@@ -152,7 +152,7 @@ class PopulationResult:
             "channel_i", "channel_j", "mean", "std", "n_trials", "rank",
         ])
         edge_df["rank"] = np.arange(1, len(edge_df) + 1)
-        edge_df.to_csv(out / self._EDGE_CSV, index=False, float_format="%.6f")
+        edge_df.to_csv(out / self._EDGE_CSV, index=False, float_format="%.8f")
 
         # raw matrices
         np.save(out / self._MATRIX_NPY, self.pair_matrix.astype(np.float32))
@@ -165,7 +165,7 @@ class PopulationResult:
                 "mean": self.feature_importance_mean,
                 "std": self.feature_importance_std,
             })
-            feat_df.to_csv(out / self._FEATURE_CSV, index=False, float_format="%.6f")
+            feat_df.to_csv(out / self._FEATURE_CSV, index=False, float_format="%.8f")
 
         if self.temporal_attention_mean is not None:
             assert self.temporal_attention_std is not None
@@ -180,7 +180,7 @@ class PopulationResult:
                 "mean": self.temporal_attention_mean,
                 "std": self.temporal_attention_std,
             })
-            tmp_df.to_csv(out / self._TEMPORAL_CSV, index=False, float_format="%.6f")
+            tmp_df.to_csv(out / self._TEMPORAL_CSV, index=False, float_format="%.8f")
 
         meta = {
             "arch": self.arch,
