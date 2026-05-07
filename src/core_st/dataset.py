@@ -129,9 +129,14 @@ class fNIRSGraphDataset(Dataset):
     def __getitem__(self, idx: int) -> Data:
         return self._graphs[idx]
 
-    def compute_stats(self) -> Dict[str, torch.Tensor]:
+    def compute_stats(self, indices: Optional[Sequence[int]] = None) -> Dict[str, torch.Tensor]:
+        """Edge-feature stats. Pass `indices` to restrict to a fold's training subset
+        — required for leak-free k-fold/LOSO normalization (see SG_vs_ST_validation_comparison.md §7).
+        Default `indices=None` retains full-dataset behavior. ST has a much smaller leak surface
+        than SG because node features `x` are self-normalized per-trial in `_build_graph`."""
         # x is already z-scored per-channel per-trial; only edge stats are needed
-        valid_ea = [g.edge_attr for g in self._graphs if g.edge_attr.shape[0] > 0]
+        graphs = self._graphs if indices is None else [self._graphs[i] for i in indices]
+        valid_ea = [g.edge_attr for g in graphs if g.edge_attr.shape[0] > 0]
         if valid_ea:
             all_ea = torch.cat(valid_ea, dim=0)
             mean_ea = all_ea.mean(dim=0)
@@ -246,23 +251,18 @@ def _make_loaders(
 
 
 # ---------------------------------------------------------------------------
-# Public loader functions
+# Public split functions — return indices only; transforms are applied per-fold
+# downstream so dataset.compute_stats(train_indices) can be leak-free.
 # ---------------------------------------------------------------------------
 
-def get_holdout_loaders(
+def get_holdout_split(
     dataset,
     *,
-    batch_size: int = 8,
-    shuffle_train: bool = True,
-    num_workers: int = 0,
-    pin_memory: bool = False,
     val_subjects: Optional[Sequence[str]] = None,
     val_ratio: float = 0.2,
     random_state: int = 42,
-    train_transform=None,
-    val_transform=None,
     verbose: bool = True,
-) -> Tuple[DataLoader, DataLoader]:
+) -> Tuple[List[int], List[int]]:
     subj_to_indices, subj_to_label = _group_indices_by_subject(dataset)
     subject_ids = sorted(subj_to_indices.keys())
     subject_labels = [subj_to_label[sid] for sid in subject_ids]
@@ -284,31 +284,21 @@ def get_holdout_loaders(
         _print_split_info("Val  ", dataset, val_indices)
         print("=====================================")
 
-    return _make_loaders(
-        dataset, train_indices, val_indices,
-        batch_size, shuffle_train, num_workers, pin_memory,
-        train_transform, val_transform,
-    )
+    return train_indices, val_indices
 
 
-def get_kfold_loaders(
+def get_kfold_splits(
     dataset,
     *,
     n_splits: int = 5,
-    batch_size: int = 8,
-    shuffle_train: bool = True,
-    num_workers: int = 0,
-    pin_memory: bool = False,
     random_state: int = 42,
-    train_transform=None,
-    val_transform=None,
     verbose: bool = True,
-) -> List[Tuple[DataLoader, DataLoader]]:
+) -> List[Tuple[List[int], List[int]]]:
     subj_to_indices, subj_to_label = _group_indices_by_subject(dataset)
     subject_ids = sorted(subj_to_indices.keys())
     subject_labels = [subj_to_label[sid] for sid in subject_ids]
 
-    fold_loaders = []
+    fold_splits: List[Tuple[List[int], List[int]]] = []
     for fold_id, tr_subjects, va_subjects in _subject_kfold_indices(
         subject_ids, subject_labels, n_splits, random_state
     ):
@@ -319,36 +309,24 @@ def get_kfold_loaders(
             _print_split_info("Train", dataset, train_indices)
             _print_split_info("Val  ", dataset, val_indices)
             print("=" * 45)
-        fold_loaders.append(
-            _make_loaders(
-                dataset, train_indices, val_indices,
-                batch_size, shuffle_train, num_workers, pin_memory,
-                train_transform, val_transform,
-            )
-        )
-    return fold_loaders
+        fold_splits.append((train_indices, val_indices))
+    return fold_splits
 
 
-def get_kfold_loaders_from_json(
+def get_kfold_splits_from_json(
     dataset,
     splits_json: str,
     n_splits: int = 5,
     *,
-    batch_size: int = 8,
-    shuffle_train: bool = True,
-    num_workers: int = 0,
-    pin_memory: bool = False,
-    train_transform=None,
-    val_transform=None,
     verbose: bool = True,
-) -> List[Tuple["DataLoader", "DataLoader"]]:
+) -> List[Tuple[List[int], List[int]]]:
     with open(splits_json) as f:
         data = json.load(f)
     key = f"kfold_{n_splits}"
     if key not in data:
         available = [k for k in data if k.startswith("kfold_")]
         raise ValueError(f"Key '{key}' not in splits JSON. Available: {available}")
-    fold_loaders = []
+    fold_splits: List[Tuple[List[int], List[int]]] = []
     for fold_entry in data[key]:
         fold_id = fold_entry["fold"]
         train_indices = _subjects_to_indices(dataset, fold_entry["train_subjects"])
@@ -358,31 +336,19 @@ def get_kfold_loaders_from_json(
             _print_split_info("Train", dataset, train_indices)
             _print_split_info("Val  ", dataset, val_indices)
             print("=" * 45)
-        fold_loaders.append(
-            _make_loaders(
-                dataset, train_indices, val_indices,
-                batch_size, shuffle_train, num_workers, pin_memory,
-                train_transform, val_transform,
-            )
-        )
-    return fold_loaders
+        fold_splits.append((train_indices, val_indices))
+    return fold_splits
 
 
-def get_loso_loaders(
+def get_loso_splits(
     dataset,
     *,
-    batch_size: int = 8,
-    shuffle_train: bool = True,
-    num_workers: int = 0,
-    pin_memory: bool = False,
-    train_transform=None,
-    val_transform=None,
     verbose: bool = True,
-) -> List[Tuple[DataLoader, DataLoader, str]]:
+) -> List[Tuple[List[int], List[int], str]]:
     subj_to_indices, _ = _group_indices_by_subject(dataset)
     subject_ids = sorted(subj_to_indices.keys())
 
-    fold_loaders = []
+    fold_splits: List[Tuple[List[int], List[int], str]] = []
     n = len(subject_ids)
     for fold_id, val_subject in enumerate(subject_ids, start=1):
         val_indices = subj_to_indices[val_subject]
@@ -396,10 +362,24 @@ def get_loso_loaders(
             _print_split_info("Train", dataset, train_indices)
             _print_split_info("Val  ", dataset, val_indices)
             print("=" * 50)
-        train_loader, val_loader = _make_loaders(
-            dataset, train_indices, val_indices,
-            batch_size, shuffle_train, num_workers, pin_memory,
-            train_transform, val_transform,
-        )
-        fold_loaders.append((train_loader, val_loader, val_subject))
-    return fold_loaders
+        fold_splits.append((train_indices, val_indices, val_subject))
+    return fold_splits
+
+
+def make_loaders(
+    dataset,
+    train_indices: Sequence[int],
+    val_indices: Sequence[int],
+    *,
+    batch_size: int = 8,
+    shuffle_train: bool = True,
+    num_workers: int = 0,
+    pin_memory: bool = False,
+    train_transform=None,
+    val_transform=None,
+) -> Tuple[DataLoader, DataLoader]:
+    return _make_loaders(
+        dataset, list(train_indices), list(val_indices),
+        batch_size, shuffle_train, num_workers, pin_memory,
+        train_transform, val_transform,
+    )

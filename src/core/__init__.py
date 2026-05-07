@@ -1,5 +1,9 @@
 from .config import SystemConfig, ExperimentConfig, setup_system, save_config, load_config
-from .dataset import fNIRSGraphDataset, get_holdout_loaders, get_kfold_loaders, get_loso_loaders
+from .dataset import (
+    fNIRSGraphDataset,
+    get_holdout_split, get_kfold_splits, get_kfold_splits_from_json, get_loso_splits,
+    make_loaders,
+)
 from .transforms import get_transforms
 from .models import FlexibleGATNet
 from .training import (
@@ -10,7 +14,9 @@ from .utils import set_seed, get_experiment_dir, compute_statistical_features, p
 
 __all__ = [
     "SystemConfig", "ExperimentConfig", "setup_system", "save_config", "load_config",
-    "fNIRSGraphDataset", "get_holdout_loaders", "get_kfold_loaders", "get_loso_loaders",
+    "fNIRSGraphDataset",
+    "get_holdout_split", "get_kfold_splits", "get_kfold_splits_from_json", "get_loso_splits",
+    "make_loaders",
     "get_transforms",
     "FlexibleGATNet",
     "train_epoch", "evaluate", "EarlyStopping", "FocalLoss", "CosineWarmupScheduler",

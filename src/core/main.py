@@ -6,6 +6,7 @@ from typing import Any, Dict, Optional
 import torch
 import yaml
 from torch import optim
+from torch.optim.lr_scheduler import CosineAnnealingLR, ReduceLROnPlateau
 
 from .config import ExperimentConfig, SystemConfig, load_config, save_config, setup_system
 from .dataset import fNIRSGraphDataset
@@ -16,7 +17,6 @@ from .training import (
     perform_kfold_training,
     perform_loso_training,
 )
-from .transforms import get_transforms
 from .utils import get_experiment_dir
 
 TASK_CHOICES = ["GNG", "VF", "SS", "1backWM"]
@@ -43,6 +43,11 @@ def build_parser() -> ArgumentParser:
     p.add_argument("--patience", type=int, default=10)
     p.add_argument("--checkpoint_metric", type=str, default="f1", choices=["f1", "loss"],
                    help="Metric used for checkpoint saving and early stopping: 'f1' (best val F1) or 'loss' (lowest val loss)")
+    p.add_argument("--scheduler", type=str, default=None,
+                   choices=["cosine_annealing", "cosine_warmup", "reduce_on_plateau"],
+                   help="LR scheduler (default from YAML/code: cosine_warmup, preserving legacy SG behavior)")
+    p.add_argument("--eta_min", type=float, default=1e-5,
+                   help="CosineAnnealingLR eta_min (default: 1e-5; ignored for other schedulers)")
     p.add_argument("--use_class_weights", action="store_true")
     p.add_argument("--sqrt_class_weights", action="store_true",
                    help="Apply sqrt softening to class weights (only used if --use_class_weights is set)")
@@ -124,6 +129,7 @@ def _args_to_config(args, yaml_cfg: Dict[str, Any]) -> ExperimentConfig:
         lr=args.lr,
         patience=args.patience,
         checkpoint_metric=args.checkpoint_metric,
+        scheduler=pick(args.scheduler, "scheduler", "cosine_warmup"),
         use_class_weights=args.use_class_weights,
         sqrt_class_weights=args.sqrt_class_weights,
         use_focal_loss=args.use_focal_loss,
@@ -186,22 +192,8 @@ def main() -> None:
     )
     print(f"Dataset: {len(dataset)} graphs loaded")
 
-    stats = dataset.compute_stats()
-    train_transform = get_transforms(
-        stats,
-        augment=cfg.augment,
-        edge_dropout_p=cfg.edge_dropout_p,
-        feature_mask_p=cfg.feature_mask_p,
-        feature_mask_mode=cfg.feature_mask_mode,
-        use_rwpe=cfg.use_rwpe,
-        rwpe_walk_length=cfg.rwpe_walk_length,
-    )
-    val_transform = get_transforms(
-        stats,
-        augment=False,
-        use_rwpe=cfg.use_rwpe,
-        rwpe_walk_length=cfg.rwpe_walk_length,
-    )
+    # Stats and transforms are built per-fold inside training.py to keep normalization
+    # leak-free (see SG_vs_ST_validation_comparison.md §7).
 
     in_channels = 6 + (cfg.rwpe_walk_length if cfg.use_rwpe else 0)
     model = FlexibleGATNet(
@@ -221,8 +213,15 @@ def main() -> None:
 
     optimizer_class = optim.Adam
     optimizer_params = {"lr": cfg.lr}
-    scheduler_class = CosineWarmupScheduler
-    scheduler_params = {"warmup": 5, "max_iters": cfg.epochs}
+    if cfg.scheduler == "cosine_annealing":
+        scheduler_class = CosineAnnealingLR
+        scheduler_params = {"T_max": cfg.epochs, "eta_min": args.eta_min}
+    elif cfg.scheduler == "cosine_warmup":
+        scheduler_class = CosineWarmupScheduler
+        scheduler_params = {"warmup": 5, "max_iters": cfg.epochs}
+    else:  # reduce_on_plateau
+        scheduler_class = ReduceLROnPlateau
+        scheduler_params = {"mode": "max", "factor": 0.5, "patience": 5}
 
     shared = dict(
         model=model,
@@ -231,8 +230,6 @@ def main() -> None:
         device=device,
         exp_dir=exp_dir,
         model_name=exp_name,
-        train_transform=train_transform,
-        val_transform=val_transform,
         optimizer_class=optimizer_class,
         optimizer_params=optimizer_params,
         scheduler_class=scheduler_class,

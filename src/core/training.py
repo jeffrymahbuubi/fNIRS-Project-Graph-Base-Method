@@ -16,7 +16,14 @@ from sklearn.metrics import confusion_matrix
 from sklearn.utils.class_weight import compute_class_weight
 from torch.optim.lr_scheduler import LRScheduler
 
-from .dataset import get_holdout_loaders, get_kfold_loaders, get_kfold_loaders_from_json, get_loso_loaders
+from .dataset import (
+    get_holdout_split,
+    get_kfold_splits,
+    get_kfold_splits_from_json,
+    get_loso_splits,
+    make_loaders,
+)
+from .transforms import get_transforms
 
 
 # ---------------------------------------------------------------------------
@@ -283,7 +290,10 @@ def _run_fold(model, optimizer, scheduler, train_loader, val_loader, device,
         if early_stopper(monitor_val, epoch):
             break
         if scheduler is not None:
-            scheduler.step()
+            if isinstance(scheduler, torch.optim.lr_scheduler.ReduceLROnPlateau):
+                scheduler.step(monitor_val)
+            else:
+                scheduler.step()
 
     return history, best_epoch, best_model_state
 
@@ -341,15 +351,38 @@ def _compute_overall_metrics(fold_metrics: Dict, save_dir: str, name: str, suffi
 # Public training entry points
 # ---------------------------------------------------------------------------
 
+def _build_fold_transforms(dataset, train_indices, cfg):
+    """Compute leak-free per-fold stats from train_indices and build transforms.
+    See SG_vs_ST_validation_comparison.md §7 for why this must be per-fold."""
+    stats = dataset.compute_stats(train_indices)
+    train_transform = get_transforms(
+        stats,
+        augment=cfg.augment,
+        edge_dropout_p=cfg.edge_dropout_p,
+        feature_mask_p=cfg.feature_mask_p,
+        feature_mask_mode=cfg.feature_mask_mode,
+        use_rwpe=cfg.use_rwpe,
+        rwpe_walk_length=cfg.rwpe_walk_length,
+    )
+    val_transform = get_transforms(
+        stats,
+        augment=False,
+        use_rwpe=cfg.use_rwpe,
+        rwpe_walk_length=cfg.rwpe_walk_length,
+    )
+    return train_transform, val_transform
+
+
 def perform_holdout_training(model, dataset, cfg, device, exp_dir: str, model_name: str,
-                              train_transform, val_transform,
                               optimizer_class, optimizer_params,
                               scheduler_class, scheduler_params) -> Dict:
-    train_loader, val_loader = get_holdout_loaders(
-        dataset,
+    train_indices, val_indices = get_holdout_split(
+        dataset, val_ratio=cfg.val_ratio, random_state=cfg.random_state,
+    )
+    train_transform, val_transform = _build_fold_transforms(dataset, train_indices, cfg)
+    train_loader, val_loader = make_loaders(
+        dataset, train_indices, val_indices,
         batch_size=cfg.batch_size,
-        val_ratio=cfg.val_ratio,
-        random_state=cfg.random_state,
         num_workers=cfg.num_workers,
         pin_memory=cfg.pin_memory,
         train_transform=train_transform,
@@ -384,38 +417,23 @@ def perform_holdout_training(model, dataset, cfg, device, exp_dir: str, model_na
 
 
 def perform_kfold_training(model, dataset, cfg, device, exp_dir: str, model_name: str,
-                            train_transform, val_transform,
                             optimizer_class, optimizer_params,
                             scheduler_class, scheduler_params,
                             resume: bool = False,
                             splits_json: Optional[str] = None) -> Dict:
     if splits_json is not None:
         print(f"Using pre-defined splits from: {splits_json}")
-        fold_data = get_kfold_loaders_from_json(
-            dataset,
-            splits_json=splits_json,
-            n_splits=cfg.k_folds,
-            batch_size=cfg.batch_size,
-            num_workers=cfg.num_workers,
-            pin_memory=cfg.pin_memory,
-            train_transform=train_transform,
-            val_transform=val_transform,
+        fold_splits = get_kfold_splits_from_json(
+            dataset, splits_json=splits_json, n_splits=cfg.k_folds,
         )
     else:
-        fold_data = get_kfold_loaders(
-            dataset,
-            n_splits=cfg.k_folds,
-            batch_size=cfg.batch_size,
-            random_state=cfg.random_state,
-            num_workers=cfg.num_workers,
-            pin_memory=cfg.pin_memory,
-            train_transform=train_transform,
-            val_transform=val_transform,
+        fold_splits = get_kfold_splits(
+            dataset, n_splits=cfg.k_folds, random_state=cfg.random_state,
         )
     os.makedirs(exp_dir, exist_ok=True)
     fold_metrics = _empty_fold_metrics()
 
-    for fold_idx, (train_loader, val_loader) in enumerate(fold_data):
+    for fold_idx, (train_indices, val_indices) in enumerate(fold_splits):
         fold_name = f"{model_name}_fold_{fold_idx + 1}"
         fold_pt = os.path.join(exp_dir, f"{fold_name}.pt")
         fold_pkl = os.path.join(exp_dir, f"{fold_name}.pkl")
@@ -438,6 +456,15 @@ def perform_kfold_training(model, dataset, cfg, device, exp_dir: str, model_name
 
         print(f"\n=== K-Fold {fold_idx + 1}/{cfg.k_folds} ===")
         t0 = time.time()
+        train_transform, val_transform = _build_fold_transforms(dataset, train_indices, cfg)
+        train_loader, val_loader = make_loaders(
+            dataset, train_indices, val_indices,
+            batch_size=cfg.batch_size,
+            num_workers=cfg.num_workers,
+            pin_memory=cfg.pin_memory,
+            train_transform=train_transform,
+            val_transform=val_transform,
+        )
         _reset_model(model)
         optimizer = optimizer_class(model.parameters(), **optimizer_params)
         scheduler = scheduler_class(optimizer, **scheduler_params) if scheduler_class else None
@@ -463,23 +490,15 @@ def perform_kfold_training(model, dataset, cfg, device, exp_dir: str, model_name
 
 
 def perform_loso_training(model, dataset, cfg, device, exp_dir: str, model_name: str,
-                           train_transform, val_transform,
                            optimizer_class, optimizer_params,
                            scheduler_class, scheduler_params,
                            resume: bool = False) -> Dict:
-    fold_data = get_loso_loaders(
-        dataset,
-        batch_size=cfg.batch_size,
-        num_workers=cfg.num_workers,
-        pin_memory=cfg.pin_memory,
-        train_transform=train_transform,
-        val_transform=val_transform,
-    )
+    fold_splits = get_loso_splits(dataset)
     os.makedirs(exp_dir, exist_ok=True)
     fold_metrics = _empty_fold_metrics()
-    n_folds = len(fold_data)
+    n_folds = len(fold_splits)
 
-    for fold_idx, (train_loader, val_loader, val_subject) in enumerate(fold_data):
+    for fold_idx, (train_indices, val_indices, val_subject) in enumerate(fold_splits):
         subj_name = f"{model_name}_subj_{val_subject}"
         subj_pt = os.path.join(exp_dir, f"{subj_name}.pt")
         subj_pkl = os.path.join(exp_dir, f"{subj_name}.pkl")
@@ -502,6 +521,15 @@ def perform_loso_training(model, dataset, cfg, device, exp_dir: str, model_name:
 
         print(f"\n=== LOSO {fold_idx + 1}/{n_folds} — Subject: {val_subject} ===")
         t0 = time.time()
+        train_transform, val_transform = _build_fold_transforms(dataset, train_indices, cfg)
+        train_loader, val_loader = make_loaders(
+            dataset, train_indices, val_indices,
+            batch_size=cfg.batch_size,
+            num_workers=cfg.num_workers,
+            pin_memory=cfg.pin_memory,
+            train_transform=train_transform,
+            val_transform=val_transform,
+        )
         _reset_model(model)
         optimizer = optimizer_class(model.parameters(), **optimizer_params)
         scheduler = scheduler_class(optimizer, **scheduler_params) if scheduler_class else None

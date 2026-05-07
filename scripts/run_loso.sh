@@ -20,6 +20,10 @@
 #   bash scripts/run_loso.sh hbo hbr                     # two signal types
 #   bash scripts/run_loso.sh --checkpoint_metric=loss    # checkpoint on lowest val loss
 #   bash scripts/run_loso.sh hbo --checkpoint_metric=loss
+#   bash scripts/run_loso.sh --max_trials=2              # override YAML max_trials
+#   bash scripts/run_loso.sh --max_trials=2 hbo
+#   bash scripts/run_loso.sh --scheduler=cosine_annealing # override LR scheduler (default: cosine_warmup)
+#   bash scripts/run_loso.sh --scheduler=reduce_on_plateau hbo
 
 set -euo pipefail
 
@@ -27,28 +31,38 @@ REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 CONFIG="$REPO_ROOT/src/core/experiment_config.yaml"
 DATE_TAG="$(date +%Y%m%d)"
 BASE_SAVE="$REPO_ROOT/research/experiments/$DATE_TAG/loso"
-DATA_DIR="$REPO_ROOT/data/processed-new"
+DATA_DIR="$REPO_ROOT/data/processed-new-mc"
 
 # Training settings (max_trials and model/graph params come from experiment_config.yaml)
 EPOCHS=150
 LR=6.79e-03
 BATCH_SIZE=8
-PATIENCE=30
+PATIENCE=9999
 SEED=42
 NUM_WORKERS=4
 
 CHECKPOINT_METRIC="f1"
+MAX_TRIALS=""
+SCHEDULER=""
 DATA_TYPES=()
 for arg in "$@"; do
     case "$arg" in
         --checkpoint_metric=*) CHECKPOINT_METRIC="${arg#--checkpoint_metric=}" ;;
+        --max_trials=*) MAX_TRIALS="${arg#--max_trials=}" ;;
+        --scheduler=*) SCHEDULER="${arg#--scheduler=}" ;;
         hbo|hbr|hbt) DATA_TYPES+=("$arg") ;;
-        --*) echo "WARNING: unrecognised argument '$arg' — ignored. Did you mean --checkpoint_metric=?" >&2 ;;
+        --*) echo "WARNING: unrecognised argument '$arg' — ignored. Did you mean --checkpoint_metric=, --max_trials=, or --scheduler=?" >&2 ;;
     esac
 done
 if [ "${#DATA_TYPES[@]}" -eq 0 ]; then
     DATA_TYPES=(hbo hbr hbt)
 fi
+
+EXTRA_ARGS=()
+[ -n "$MAX_TRIALS" ] && EXTRA_ARGS+=(--max_trials "$MAX_TRIALS")
+[ -n "$SCHEDULER" ] && EXTRA_ARGS+=(--scheduler "$SCHEDULER")
+MT_LABEL="${MAX_TRIALS:-yaml-default}"
+SCHED_LABEL="${SCHEDULER:-yaml-default(cosine_warmup)}"
 
 cd "$REPO_ROOT"
 
@@ -56,7 +70,7 @@ for DATA_TYPE in "${DATA_TYPES[@]}"; do
 
     echo ""
     echo "=========================================="
-    echo "LOSO | Signal: $DATA_TYPE | epochs: $EPOCHS | lr: $LR | ckpt: $CHECKPOINT_METRIC"
+    echo "LOSO | Signal: $DATA_TYPE | epochs: $EPOCHS | lr: $LR | ckpt: $CHECKPOINT_METRIC | max_trials: $MT_LABEL | scheduler: $SCHED_LABEL"
     echo "=========================================="
     python -m src.core.main \
         --config "$CONFIG" \
@@ -71,7 +85,8 @@ for DATA_TYPE in "${DATA_TYPES[@]}"; do
         --patience "$PATIENCE" \
         --checkpoint_metric "$CHECKPOINT_METRIC" \
         --seed "$SEED" \
-        --num_workers "$NUM_WORKERS"
+        --num_workers "$NUM_WORKERS" \
+        "${EXTRA_ARGS[@]}"
 
 done
 

@@ -40,7 +40,12 @@ import optuna
 import torch
 import torch.nn as nn
 
-from .dataset import fNIRSGraphDataset, get_holdout_loaders, get_kfold_loaders_from_json
+from .dataset import (
+    fNIRSGraphDataset,
+    get_holdout_split,
+    get_kfold_splits_from_json,
+    make_loaders,
+)
 from .models import FlexibleGATNet
 from .training import FocalLoss, train_epoch, evaluate
 from .transforms import get_transforms
@@ -206,7 +211,6 @@ def _make_loss_fn(hparams: Dict, use_fl: bool) -> nn.Module:
 
 def objective(
     dataset: fNIRSGraphDataset,
-    stats: Dict,
     trial: optuna.Trial,
     n_epochs: int,
     device: torch.device,
@@ -214,21 +218,20 @@ def objective(
     early_stop_patience: int = 10,
     num_workers: int = 0,
 ) -> float:
-    """Single subject-level holdout objective (val_ratio=0.2, random_state=42)."""
+    """Single subject-level holdout objective (val_ratio=0.2, random_state=42).
+    Stats are computed per-trial on train_indices only (leak-free; see SG_vs_ST §7)."""
     hparams = design_search_space(trial, use_fl=use_fl)
 
+    train_indices, val_indices = get_holdout_split(
+        dataset, val_ratio=0.2, random_state=42, verbose=False,
+    )
+    stats = dataset.compute_stats(train_indices)
     transform = get_transforms(stats, augment=False)
-    train_loader, val_loader = get_holdout_loaders(
-        dataset,
-        batch_size=8,
-        shuffle_train=True,
-        num_workers=num_workers,
-        pin_memory=True,
-        val_ratio=0.2,
-        random_state=42,
-        train_transform=transform,
-        val_transform=transform,
-        verbose=False,
+    train_loader, val_loader = make_loaders(
+        dataset, train_indices, val_indices,
+        batch_size=8, shuffle_train=True,
+        num_workers=num_workers, pin_memory=True,
+        train_transform=transform, val_transform=transform,
     )
 
     model = _build_model(hparams, device)
@@ -279,7 +282,6 @@ def objective(
 
 def objective_kfold(
     dataset: fNIRSGraphDataset,
-    stats: Dict,
     trial: optuna.Trial,
     n_epochs: int,
     device: torch.device,
@@ -296,6 +298,9 @@ def objective_kfold(
     deterministic, subject-stratified). A fresh model is trained per fold;
     the trial objective is the mean val F1 across all folds.
 
+    Stats are computed per-fold from train_indices only — leak-free
+    (see SG_vs_ST_validation_comparison.md §7).
+
     Per-epoch intermediate values are reported with globally ordered steps
     (fold_idx * n_epochs + epoch) so MedianPruner can prune within fold 1
     if the trial is clearly underperforming.
@@ -305,19 +310,9 @@ def objective_kfold(
     """
     hparams = design_search_space(trial, use_fl=use_fl)
     loss_fn = _make_loss_fn(hparams, use_fl)
-    transform = get_transforms(stats, augment=False)
 
-    fold_data = get_kfold_loaders_from_json(
-        dataset,
-        splits_json=splits_json,
-        n_splits=inner_folds,
-        batch_size=8,
-        shuffle_train=True,
-        num_workers=num_workers,
-        pin_memory=True,
-        train_transform=transform,
-        val_transform=transform,
-        verbose=False,
+    fold_splits = get_kfold_splits_from_json(
+        dataset, splits_json=splits_json, n_splits=inner_folds, verbose=False,
     )
 
     fold_f1_scores: List[float] = []
@@ -325,9 +320,17 @@ def objective_kfold(
     total_params: Optional[int] = None
     trainable_params: Optional[int] = None
 
-    for fold_idx in range(len(fold_data)):
-        train_loader, val_loader = fold_data[fold_idx]
-        fold_data[fold_idx] = None  # release persistent workers from this fold before next
+    for fold_idx in range(len(fold_splits)):
+        train_indices, val_indices = fold_splits[fold_idx]
+        fold_splits[fold_idx] = None  # release reference before next fold
+        stats = dataset.compute_stats(train_indices)
+        transform = get_transforms(stats, augment=False)
+        train_loader, val_loader = make_loaders(
+            dataset, train_indices, val_indices,
+            batch_size=8, shuffle_train=True,
+            num_workers=num_workers, pin_memory=True,
+            train_transform=transform, val_transform=transform,
+        )
 
         model = _build_model(hparams, device)
 
@@ -500,7 +503,7 @@ def run_optuna(
         corr_threshold=0.1,
         self_loops=True,
     )
-    stats = dataset.compute_stats()
+    # Stats are now computed per-trial inside the objective (leak-free).
 
     print(f"Experiment dir  : {save_dir}")
     print(f"Study name      : {study_name}")
@@ -537,14 +540,14 @@ def run_optuna(
 
     if eval_strategy == "holdout":
         obj_fn = lambda trial: objective(
-            dataset, stats, trial, n_epochs, device,
+            dataset, trial, n_epochs, device,
             use_fl=use_fl,
             early_stop_patience=early_stop_patience,
             num_workers=num_workers,
         )
     else:
         obj_fn = lambda trial: objective_kfold(
-            dataset, stats, trial, n_epochs, device,
+            dataset, trial, n_epochs, device,
             splits_json=splits_json,
             inner_folds=inner_folds,
             use_fl=use_fl,

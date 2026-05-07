@@ -23,7 +23,12 @@ import optuna
 import torch
 import torch.nn as nn
 
-from .dataset import fNIRSGraphDataset, get_holdout_loaders, get_kfold_loaders_from_json
+from .dataset import (
+    fNIRSGraphDataset,
+    get_holdout_split,
+    get_kfold_splits_from_json,
+    make_loaders,
+)
 from .models import WindowedSpatioTemporalGATNet
 from .training import FocalLoss, train_epoch, evaluate
 from .transforms import get_transforms
@@ -306,7 +311,6 @@ def setup_optuna_logging(save_dir: str, verbosity: int = logging.WARNING) -> str
 
 def objective_st(
     dataset: fNIRSGraphDataset,
-    stats: Dict,
     trial: optuna.Trial,
     n_epochs: int,
     device: torch.device,
@@ -320,21 +324,20 @@ def objective_st(
     Uses a subject-level holdout split (val_ratio=0.2, random_state=42)
     consistent with the baseline objective function in the notebook.
     Augmentation is disabled on both splits (hyperparameter search only).
+    Stats are computed per-trial on train_indices only (leak-free; see SG_vs_ST §7).
     """
     hparams = design_search_space_st(trial, use_fl=use_fl)
 
+    train_indices, val_indices = get_holdout_split(
+        dataset, val_ratio=0.2, random_state=42, verbose=False,
+    )
+    stats = dataset.compute_stats(train_indices)
     val_transform = get_transforms(stats, augment=False)
-    train_loader, val_loader = get_holdout_loaders(
-        dataset,
-        batch_size=8,
-        shuffle_train=True,
-        num_workers=num_workers,
-        pin_memory=True,
-        val_ratio=0.2,
-        random_state=42,
-        train_transform=val_transform,
-        val_transform=val_transform,
-        verbose=False,
+    train_loader, val_loader = make_loaders(
+        dataset, train_indices, val_indices,
+        batch_size=8, shuffle_train=True,
+        num_workers=num_workers, pin_memory=True,
+        train_transform=val_transform, val_transform=val_transform,
     )
 
     model = _build_model_st(hparams, device)
@@ -385,7 +388,6 @@ def objective_st(
 
 def objective_kfold_st(
     dataset: fNIRSGraphDataset,
-    stats: Dict,
     trial: optuna.Trial,
     n_epochs: int,
     device: torch.device,
@@ -403,6 +405,9 @@ def objective_kfold_st(
     deterministic, subject-stratified). A fresh model is trained per fold;
     the trial objective is the mean val F1 across all folds.
 
+    Stats are computed per-fold from train_indices only — leak-free
+    (see SG_vs_ST_validation_comparison.md §7).
+
     Per-epoch intermediate values are reported with globally ordered steps
     (fold_idx * n_epochs + epoch) so MedianPruner can prune within fold 0
     if the trial is clearly underperforming.
@@ -412,19 +417,9 @@ def objective_kfold_st(
     """
     hparams = design_search_space_st(trial, use_fl=use_fl)
     loss_fn = _make_loss_fn_st(hparams, use_fl)
-    transform = get_transforms(stats, augment=False)
 
-    fold_data = get_kfold_loaders_from_json(
-        dataset,
-        splits_json=splits_json,
-        n_splits=inner_folds,
-        batch_size=8,
-        shuffle_train=True,
-        num_workers=num_workers,
-        pin_memory=True,
-        train_transform=transform,
-        val_transform=transform,
-        verbose=False,
+    fold_splits = get_kfold_splits_from_json(
+        dataset, splits_json=splits_json, n_splits=inner_folds, verbose=False,
     )
 
     fold_f1_scores: List[float] = []
@@ -432,9 +427,17 @@ def objective_kfold_st(
     total_params: Optional[int] = None
     trainable_params: Optional[int] = None
 
-    for fold_idx in range(len(fold_data)):
-        train_loader, val_loader = fold_data[fold_idx]
-        fold_data[fold_idx] = None  # release persistent workers from this fold before next
+    for fold_idx in range(len(fold_splits)):
+        train_indices, val_indices = fold_splits[fold_idx]
+        fold_splits[fold_idx] = None  # release reference before next fold
+        stats = dataset.compute_stats(train_indices)
+        transform = get_transforms(stats, augment=False)
+        train_loader, val_loader = make_loaders(
+            dataset, train_indices, val_indices,
+            batch_size=8, shuffle_train=True,
+            num_workers=num_workers, pin_memory=True,
+            train_transform=transform, val_transform=transform,
+        )
 
         model = _build_model_st(hparams, device)
 
@@ -481,7 +484,6 @@ def objective_kfold_st(
 
 def objective_lr_cosine_st(
     dataset: fNIRSGraphDataset,
-    stats: Dict,
     trial: optuna.Trial,
     n_epochs: int,
     device: torch.device,
@@ -491,21 +493,20 @@ def objective_lr_cosine_st(
     """
     Holdout objective: searches only LR/T_max/eta_min under CosineAnnealingLR
     with architecture locked to CORAL best. Use --search_type lr_cosine.
+    Stats are computed per-trial on train_indices only (leak-free; see SG_vs_ST §7).
     """
     hparams = design_search_space_lr_cosine_st(trial)
 
+    train_indices, val_indices = get_holdout_split(
+        dataset, val_ratio=0.2, random_state=42, verbose=False,
+    )
+    stats = dataset.compute_stats(train_indices)
     val_transform = get_transforms(stats, augment=False)
-    train_loader, val_loader = get_holdout_loaders(
-        dataset,
-        batch_size=8,
-        shuffle_train=True,
-        num_workers=num_workers,
-        pin_memory=True,
-        val_ratio=0.2,
-        random_state=42,
-        train_transform=val_transform,
-        val_transform=val_transform,
-        verbose=False,
+    train_loader, val_loader = make_loaders(
+        dataset, train_indices, val_indices,
+        batch_size=8, shuffle_train=True,
+        num_workers=num_workers, pin_memory=True,
+        train_transform=val_transform, val_transform=val_transform,
     )
 
     model = _build_model_st(hparams, device)
@@ -550,7 +551,6 @@ def objective_lr_cosine_st(
 
 def objective_kfold_lr_cosine_st(
     dataset: fNIRSGraphDataset,
-    stats: Dict,
     trial: optuna.Trial,
     n_epochs: int,
     device: torch.device,
@@ -562,22 +562,13 @@ def objective_kfold_lr_cosine_st(
     """
     Inner k-fold CV variant of objective_lr_cosine_st. More robust than holdout.
     Requires splits_json. Use --search_type lr_cosine --eval_strategy kfold.
+    Stats are computed per-fold from train_indices only (leak-free; see SG_vs_ST §7).
     """
     hparams = design_search_space_lr_cosine_st(trial)
     loss_fn = torch.nn.CrossEntropyLoss()
-    transform = get_transforms(stats, augment=False)
 
-    fold_data = get_kfold_loaders_from_json(
-        dataset,
-        splits_json=splits_json,
-        n_splits=inner_folds,
-        batch_size=8,
-        shuffle_train=True,
-        num_workers=num_workers,
-        pin_memory=True,
-        train_transform=transform,
-        val_transform=transform,
-        verbose=False,
+    fold_splits = get_kfold_splits_from_json(
+        dataset, splits_json=splits_json, n_splits=inner_folds, verbose=False,
     )
 
     fold_f1_scores: List[float] = []
@@ -585,9 +576,17 @@ def objective_kfold_lr_cosine_st(
     total_params: Optional[int] = None
     trainable_params: Optional[int] = None
 
-    for fold_idx in range(len(fold_data)):
-        train_loader, val_loader = fold_data[fold_idx]
-        fold_data[fold_idx] = None
+    for fold_idx in range(len(fold_splits)):
+        train_indices, val_indices = fold_splits[fold_idx]
+        fold_splits[fold_idx] = None
+        stats = dataset.compute_stats(train_indices)
+        transform = get_transforms(stats, augment=False)
+        train_loader, val_loader = make_loaders(
+            dataset, train_indices, val_indices,
+            batch_size=8, shuffle_train=True,
+            num_workers=num_workers, pin_memory=True,
+            train_transform=transform, val_transform=transform,
+        )
 
         model = _build_model_st(hparams, device)
 
@@ -701,7 +700,7 @@ def run_optuna_st(
         corr_threshold=0.1,
         self_loops=True,
     )
-    stats = dataset.compute_stats()
+    # Stats are now computed per-trial inside the objective (leak-free).
 
     print(f"Experiment dir  : {save_dir}")
     print(f"Study name      : {study_name}")
@@ -740,13 +739,13 @@ def run_optuna_st(
     if search_type == "lr_cosine":
         if eval_strategy == "holdout":
             obj_fn = lambda trial: objective_lr_cosine_st(
-                dataset, stats, trial, n_epochs, device,
+                dataset, trial, n_epochs, device,
                 early_stop_patience=early_stop_patience,
                 num_workers=num_workers,
             )
         else:
             obj_fn = lambda trial: objective_kfold_lr_cosine_st(
-                dataset, stats, trial, n_epochs, device,
+                dataset, trial, n_epochs, device,
                 splits_json=splits_json,
                 inner_folds=inner_folds,
                 early_stop_patience=early_stop_patience,
@@ -754,14 +753,14 @@ def run_optuna_st(
             )
     elif eval_strategy == "holdout":
         obj_fn = lambda trial: objective_st(
-            dataset, stats, trial, n_epochs, device,
+            dataset, trial, n_epochs, device,
             use_fl=use_fl,
             early_stop_patience=early_stop_patience,
             num_workers=num_workers,
         )
     else:
         obj_fn = lambda trial: objective_kfold_st(
-            dataset, stats, trial, n_epochs, device,
+            dataset, trial, n_epochs, device,
             splits_json=splits_json,
             inner_folds=inner_folds,
             use_fl=use_fl,

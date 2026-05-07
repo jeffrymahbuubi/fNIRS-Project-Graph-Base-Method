@@ -20,6 +20,10 @@
 #   bash scripts/run_kfold.sh hbo hbr                     # two signal types
 #   bash scripts/run_kfold.sh --checkpoint_metric=loss    # checkpoint on lowest val loss
 #   bash scripts/run_kfold.sh hbo --checkpoint_metric=loss
+#   bash scripts/run_kfold.sh --max_trials=2              # override YAML max_trials
+#   bash scripts/run_kfold.sh --max_trials=2 hbo
+#   bash scripts/run_kfold.sh --scheduler=cosine_annealing # override LR scheduler (default: cosine_warmup)
+#   bash scripts/run_kfold.sh --scheduler=reduce_on_plateau hbo
 
 set -euo pipefail
 
@@ -39,17 +43,27 @@ SEED=42
 NUM_WORKERS=0
 
 CHECKPOINT_METRIC="f1"
+MAX_TRIALS=""
+SCHEDULER=""
 DATA_TYPES=()
 for arg in "$@"; do
     case "$arg" in
         --checkpoint_metric=*) CHECKPOINT_METRIC="${arg#--checkpoint_metric=}" ;;
+        --max_trials=*) MAX_TRIALS="${arg#--max_trials=}" ;;
+        --scheduler=*) SCHEDULER="${arg#--scheduler=}" ;;
         hbo|hbr|hbt) DATA_TYPES+=("$arg") ;;
-        --*) echo "WARNING: unrecognised argument '$arg' — ignored. Did you mean --checkpoint_metric=?" >&2 ;;
+        --*) echo "WARNING: unrecognised argument '$arg' — ignored. Did you mean --checkpoint_metric=, --max_trials=, or --scheduler=?" >&2 ;;
     esac
 done
 if [ "${#DATA_TYPES[@]}" -eq 0 ]; then
     DATA_TYPES=(hbo hbr hbt)
 fi
+
+EXTRA_ARGS=()
+[ -n "$MAX_TRIALS" ] && EXTRA_ARGS+=(--max_trials "$MAX_TRIALS")
+[ -n "$SCHEDULER" ] && EXTRA_ARGS+=(--scheduler "$SCHEDULER")
+MT_LABEL="${MAX_TRIALS:-yaml-default}"
+SCHED_LABEL="${SCHEDULER:-yaml-default(cosine_warmup)}"
 
 cd "$REPO_ROOT"
 
@@ -58,7 +72,7 @@ for K_FOLDS in 5 10; do
 
         echo ""
         echo "=========================================="
-        echo "k_folds: $K_FOLDS | Signal: $DATA_TYPE | epochs: $EPOCHS | lr: $LR | ckpt: $CHECKPOINT_METRIC"
+        echo "k_folds: $K_FOLDS | Signal: $DATA_TYPE | epochs: $EPOCHS | lr: $LR | ckpt: $CHECKPOINT_METRIC | max_trials: $MT_LABEL | scheduler: $SCHED_LABEL"
         echo "=========================================="
         python -m src.core.main \
             --config "$CONFIG" \
@@ -75,7 +89,8 @@ for K_FOLDS in 5 10; do
             --patience "$PATIENCE" \
             --checkpoint_metric "$CHECKPOINT_METRIC" \
             --seed "$SEED" \
-            --num_workers "$NUM_WORKERS"
+            --num_workers "$NUM_WORKERS" \
+            "${EXTRA_ARGS[@]}"
 
     done
 done

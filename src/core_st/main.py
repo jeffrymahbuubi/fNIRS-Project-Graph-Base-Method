@@ -17,7 +17,6 @@ from .training import (
     perform_kfold_training,
     perform_loso_training,
 )
-from .transforms import get_transforms
 from .utils import get_experiment_dir
 
 TASK_CHOICES = ["GNG", "VF", "SS", "1backWM"]
@@ -200,15 +199,8 @@ def main() -> None:
     )
     print(f"Dataset: {len(dataset)} graphs loaded")
 
-    stats = dataset.compute_stats()
-    train_transform = get_transforms(
-        stats,
-        augment=cfg.augment,
-        edge_dropout_p=cfg.edge_dropout_p,
-        feature_mask_p=cfg.feature_mask_p,
-        feature_mask_mode=cfg.feature_mask_mode,
-    )
-    val_transform = get_transforms(stats, augment=False)
+    # Stats and transforms are built per-fold inside training.py to keep normalization
+    # leak-free (see SG_vs_ST_validation_comparison.md §7).
 
     model = WindowedSpatioTemporalGATNet(
         in_channels=6,
@@ -250,8 +242,6 @@ def main() -> None:
         device=device,
         exp_dir=exp_dir,
         model_name=exp_name,
-        train_transform=train_transform,
-        val_transform=val_transform,
         optimizer_class=optimizer_class,
         optimizer_params=optimizer_params,
         scheduler_class=scheduler_class,
