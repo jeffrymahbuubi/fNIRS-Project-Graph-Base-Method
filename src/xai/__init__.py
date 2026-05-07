@@ -36,6 +36,13 @@ from src.xai.st_explainer import (
     explain_checkpoint as explain_st_checkpoint,
     run_st,
 )
+from src.xai.visualize import (
+    plot_montage_channel_importance,
+    plot_pair_matrix,
+    plot_temporal_attention,
+    plot_sg_vs_st_scatter,
+    plot_pair_matrix_diff,
+)
 
 __all__ = [
     "CHANNEL_NAMES",
@@ -57,4 +64,9 @@ __all__ = [
     "run_sg",
     "explain_st_checkpoint",
     "run_st",
+    "plot_montage_channel_importance",
+    "plot_pair_matrix",
+    "plot_temporal_attention",
+    "plot_sg_vs_st_scatter",
+    "plot_pair_matrix_diff",
 ]
