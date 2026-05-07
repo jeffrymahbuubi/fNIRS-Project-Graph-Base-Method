@@ -15,6 +15,7 @@ from src.xai.channels import (
     CH_TO_IDX,
     IDX_TO_GRID,
 )
+from src.xai.config import XAIRunConfig
 
 __all__ = [
     "CHANNEL_NAMES",
@@ -23,4 +24,5 @@ __all__ = [
     "N_CH",
     "CH_TO_IDX",
     "IDX_TO_GRID",
+    "XAIRunConfig",
 ]
