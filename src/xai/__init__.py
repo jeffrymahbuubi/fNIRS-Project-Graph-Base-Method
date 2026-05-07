@@ -16,6 +16,12 @@ from src.xai.channels import (
     IDX_TO_GRID,
 )
 from src.xai.config import XAIRunConfig
+from src.xai.checkpoints import (
+    CheckpointInfo,
+    LoadedCheckpoint,
+    discover_checkpoints,
+    load_checkpoint,
+)
 
 __all__ = [
     "CHANNEL_NAMES",
@@ -25,4 +31,8 @@ __all__ = [
     "CH_TO_IDX",
     "IDX_TO_GRID",
     "XAIRunConfig",
+    "CheckpointInfo",
+    "LoadedCheckpoint",
+    "discover_checkpoints",
+    "load_checkpoint",
 ]
