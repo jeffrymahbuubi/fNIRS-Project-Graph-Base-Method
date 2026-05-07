@@ -24,6 +24,9 @@ _VALID_REGIME: Tuple[str, ...] = ("kfold-5", "kfold-10", "loso")
 _VALID_MT: Tuple[int, ...] = (2, 4)
 _VALID_HEAD_REDUCE: Tuple[str, ...] = ("mean", "max")
 _VALID_LAYER_REDUCE: Tuple[str, ...] = ("mean", "last")
+# SG estimators (SPEC §5.3 / §15.4 / §15.7). C4 (SPEC §11) compares ρ between
+# any two of these three rankings at the population level.
+_VALID_SG_ESTIMATOR: Tuple[str, ...] = ("gnn", "captum_ig", "attention")
 
 
 @dataclass
@@ -57,9 +60,20 @@ class XAIRunConfig:
     --------------
     gnn_explainer_epochs       : default 200 (SPEC §5.2 step 5)
     gnn_explainer_lr           : default 0.01
-    run_attention_cross_check  : SPEC rev. 3 — third estimator alongside
-                                 GNNExplainer and CaptumExplainer-IG. Default
-                                 True; set False to skip if runtime is tight.
+    estimator                  : 'gnn' | 'captum_ig' | 'attention'
+                                 — selects the SG estimator to run.
+                                 'gnn'        → GNNExplainer (primary, SPEC §5.2)
+                                 'captum_ig'  → CaptumExplainer-IG (cross-check,
+                                                SPEC §5.3 / §15.7); requires
+                                                `captum` installed
+                                 'attention'  → AttentionExplainer (cross-check,
+                                                SPEC §5.3 / §15.4); essentially
+                                                free at inference, edge-mask only
+                                 SPEC §11 C4 compares ρ between any two of these
+                                 three rankings at the population level.
+    run_attention_cross_check  : Legacy SPEC rev. 3 toggle. Use `estimator`
+                                 field above instead — kept for backward
+                                 compatibility, no longer read by the explainer.
 
     ST-only fields
     --------------
@@ -99,7 +113,8 @@ class XAIRunConfig:
     # --- SG-only -----------------------------------------------------------
     gnn_explainer_epochs: int = 200
     gnn_explainer_lr: float = 0.01
-    run_attention_cross_check: bool = True
+    estimator: str = "gnn"
+    run_attention_cross_check: bool = True   # legacy; superseded by `estimator`
 
     # --- ST-only -----------------------------------------------------------
     head_reduce: str = "mean"
@@ -129,6 +144,10 @@ class XAIRunConfig:
         if self.layer_reduce not in _VALID_LAYER_REDUCE:
             raise ValueError(
                 f"layer_reduce must be one of {_VALID_LAYER_REDUCE}, got {self.layer_reduce!r}"
+            )
+        if self.estimator not in _VALID_SG_ESTIMATOR:
+            raise ValueError(
+                f"estimator must be one of {_VALID_SG_ESTIMATOR}, got {self.estimator!r}"
             )
         if self.gnn_explainer_epochs <= 0:
             raise ValueError(f"gnn_explainer_epochs must be > 0, got {self.gnn_explainer_epochs}")
