@@ -1,10 +1,11 @@
 """ST (WindowedSpatioTemporalGATNet) explainer — SPEC §6.
 
-Primary path: native attention via the model's built-in `model.explain()`.
-This is essentially free at inference: no per-trial optimisation, no extra
-training. The model already captures GATv2 attention (per window, per
-layer, per head) and additive temporal attention α_k during eval-mode
-forward; `model.explain()` just exposes those tensors.
+Primary path (`explain_checkpoint` + `run_st`): native attention via the
+model's built-in `model.explain()`. Essentially free at inference — no
+per-trial optimisation, no extra training. The model already captures
+GATv2 attention (per window, per layer, per head) and additive temporal
+attention α_k during eval-mode forward; `model.explain()` just exposes
+those tensors.
 
 Per-trial reductions follow SPEC §6.1:
     spatial_attention[k][l]: [E, heads]
@@ -18,8 +19,13 @@ Per-trial reductions follow SPEC §6.1:
         ↓ row-sum
     channel_importance [23]
 
-The supplementary GNNExplainer object-mask cross-check (SPEC §6.4) is
-deferred to a follow-up commit.
+Supplementary path (`explain_supplementary_checkpoint` + `run_st_supplementary`):
+GNNExplainer with `node_mask_type='object'` and `edge_mask_type='object'`
+(SPEC §6.4). The 'object' node mask is `[23]` rather than `[23, T≈326]`,
+which keeps the cross-check tractable on ST. Used as a method-independent
+sanity check on which channels matter; not as a replacement for the native
+attention path. Gated behind `cfg.run_supplementary_gnnexplainer` at the
+notebook level.
 """
 from __future__ import annotations
 
@@ -28,6 +34,8 @@ from typing import List, Tuple
 import numpy as np
 import torch
 from torch_geometric.data import Data
+from torch_geometric.explain import Explainer
+from torch_geometric.explain.algorithm import GNNExplainer
 
 from src.xai.aggregate import PopulationResult, TrialAttribution, aggregate_population
 from src.xai.channels import N_CH
@@ -38,6 +46,7 @@ from src.xai.checkpoints import (
     load_checkpoint,
 )
 from src.xai.config import XAIRunConfig
+from src.xai.sg_explainer import ProbWrapper   # generic softmax wrapper, reused
 
 # Project convention: 10 Hz fNIRS sampling rate. Matches the
 # `_get_fs()` fallback in src/core_st/dataset.py and the device files in
@@ -177,6 +186,156 @@ def explain_checkpoint(loaded: LoadedCheckpoint, cfg: XAIRunConfig) -> List[Tria
 # ---------------------------------------------------------------------------
 # Top-level run
 # ---------------------------------------------------------------------------
+
+
+# ---------------------------------------------------------------------------
+# Supplementary path — GNNExplainer with object masks (SPEC §6.4)
+# ---------------------------------------------------------------------------
+
+
+def _build_st_object_explainer(model: torch.nn.Module, cfg: XAIRunConfig) -> Explainer:
+    """SPEC §6.4 — `node_mask_type='object'` keeps the mask at [23] rather
+    than the [23, T≈326] explosion that 'attributes' would produce on ST.
+    """
+    return Explainer(
+        model=model,
+        algorithm=GNNExplainer(epochs=cfg.gnn_explainer_epochs, lr=cfg.gnn_explainer_lr),
+        explanation_type="model",
+        node_mask_type="object",
+        edge_mask_type="object",
+        model_config=dict(
+            mode="multiclass_classification",
+            task_level="graph",
+            return_type="probs",
+        ),
+    )
+
+
+def _supplementary_per_trial_reductions(
+    node_mask: torch.Tensor,             # [N] (object mask)
+    edge_mask: torch.Tensor,             # [E]
+    edge_index: torch.Tensor,             # [2, E]
+) -> Tuple[np.ndarray, np.ndarray]:
+    """Returns (channel_importance[23], pair_matrix[23,23] symmetric)."""
+    channel_importance = node_mask.detach().abs().cpu().numpy().astype(np.float32)
+    if channel_importance.ndim != 1 or channel_importance.shape[0] != N_CH:
+        raise ValueError(
+            f"object node_mask must be shape ({N_CH},), got {channel_importance.shape}"
+        )
+
+    pair = np.zeros((N_CH, N_CH), dtype=np.float32)
+    ei = edge_index.cpu().numpy()
+    em = edge_mask.detach().cpu().numpy()
+    for e in range(em.shape[0]):
+        pair[int(ei[0, e]), int(ei[1, e])] += float(em[e])
+    pair = (pair + pair.T) / 2.0
+    return channel_importance, pair
+
+
+def explain_supplementary_checkpoint(
+    loaded: LoadedCheckpoint, cfg: XAIRunConfig,
+) -> List[TrialAttribution]:
+    """SPEC §6.4 supplementary cross-check: GNNExplainer with object masks.
+
+    Stochastic — same per-trial seed reset as SG.
+    """
+    if cfg.arch != "st":
+        raise ValueError(
+            f"explain_supplementary_checkpoint(ST) requires cfg.arch='st', got {cfg.arch!r}"
+        )
+
+    device = torch.device(cfg.device)
+    model = loaded.model.to(device).eval()
+    prob_model = ProbWrapper(model).to(device).eval()
+    explainer = _build_st_object_explainer(prob_model, cfg)
+
+    trial_atts: List[TrialAttribution] = []
+    trial_idx_per_subject: dict[str, int] = {}
+
+    for idx in loaded.val_indices:
+        raw_data: Data = loaded.dataset[idx]
+        sid = str(raw_data.subject_id)
+        t_idx = trial_idx_per_subject.get(sid, 0)
+        trial_idx_per_subject[sid] = t_idx + 1
+
+        data = loaded.val_transform(raw_data).to(device)
+        true_label = int(data.y.item() if data.y.dim() == 0 else data.y[0].item())
+        batch_vec = torch.zeros(data.x.size(0), dtype=torch.long, device=device)
+
+        with torch.no_grad():
+            logits = model(data.x, data.edge_index, data.edge_attr, batch_vec)
+            pred_label = int(logits.argmax(dim=-1).item())
+
+        torch.manual_seed(cfg.seed)
+        np.random.seed(cfg.seed)
+
+        explanation = explainer(
+            x=data.x,
+            edge_index=data.edge_index,
+            edge_attr=data.edge_attr,
+            batch=batch_vec,
+        )
+        ch_imp, pair = _supplementary_per_trial_reductions(
+            explanation.node_mask, explanation.edge_mask, data.edge_index,
+        )
+
+        trial_atts.append(TrialAttribution(
+            subject_id=sid,
+            fold_or_subj_label=loaded.info.label,
+            trial_idx_in_subject=t_idx,
+            true_label=true_label,
+            pred_label=pred_label,
+            included=(pred_label == true_label) if not cfg.include_misclassified else True,
+            channel_importance=ch_imp,
+            pair_matrix=pair,
+            feature_importance=None,
+            temporal_attention=None,
+            window_times=None,
+        ))
+    return trial_atts
+
+
+def run_st_supplementary(cfg: XAIRunConfig) -> PopulationResult:
+    """SPEC §6.4 supplementary path: GNNExplainer object masks across all checkpoints.
+
+    Returns a PopulationResult separate from the native-attention `run_st(cfg)`
+    output. The notebook driver should call both and compute Spearman ρ
+    between their channel-importance rankings as a method-independent sanity
+    check (SPEC §11 C5).
+    """
+    if cfg.arch != "st":
+        raise ValueError(f"run_st_supplementary requires cfg.arch='st', got {cfg.arch!r}")
+
+    infos: List[CheckpointInfo] = discover_checkpoints(
+        cfg.experiment_root, arch="st", hb=cfg.hb, regime=cfg.regime, mt=cfg.mt,
+    )
+    if not infos:
+        raise FileNotFoundError(
+            f"no ST checkpoints under {cfg.experiment_root!r} matching "
+            f"hb={cfg.hb} regime={cfg.regime} mt={cfg.mt}"
+        )
+
+    all_trials: List[TrialAttribution] = []
+    path_rebases: List[dict] = []
+    for info in infos:
+        loaded = load_checkpoint(info, cfg)
+        path_rebases.extend(loaded.path_rebases)
+        all_trials.extend(explain_supplementary_checkpoint(loaded, cfg))
+
+    extras: dict = {
+        "estimator": "gnn_object_supplementary",
+        "gnn_explainer_epochs": cfg.gnn_explainer_epochs,
+        "gnn_explainer_lr": cfg.gnn_explainer_lr,
+        "n_checkpoints": len(infos),
+        "checkpoints": [i.label for i in infos],
+        "path_rebases": path_rebases,
+    }
+    return aggregate_population(
+        all_trials,
+        arch="st", hb=cfg.hb, regime=cfg.regime, mt=cfg.mt,
+        only_included=not cfg.include_misclassified,
+        extras=extras,
+    )
 
 
 def run_st(cfg: XAIRunConfig) -> PopulationResult:
