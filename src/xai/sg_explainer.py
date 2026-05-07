@@ -1,15 +1,28 @@
 """SG (FlexibleGATNet) explainer — SPEC §5.
 
-This iteration ships GNNExplainer only. The CaptumExplainer-IG and
-AttentionExplainer cross-checks (SPEC §5.3, rev. 3) are deferred to
-follow-up commits.
+Three estimators are supported via `cfg.estimator`:
+
+- `'gnn'`        : GNNExplainer (primary, SPEC §5.2). Stochastic per-trial
+                   optimisation; learns a [23, 6] attribute mask.
+- `'captum_ig'`  : CaptumExplainer with `IntegratedGradients` (cross-check,
+                   SPEC §5.3 / §15.7). Same mask shapes as GNNExplainer;
+                   per-trial reductions identical. Requires `captum`.
+- `'attention'`  : AttentionExplainer (cross-check, SPEC §5.3 / §15.4).
+                   Auto-extracts GATv2 attention; essentially free at
+                   inference. Edge-mask only — no node_mask is produced,
+                   so channel_importance is derived from the row-sum of
+                   the symmetric pair matrix and feature_importance is
+                   reported as None.
+
+SPEC §11 C4 compares Spearman ρ between any two of the three population-
+level rankings. The notebook driver runs the cell three times with
+different `cfg.estimator` values and computes ρ.
 
 Public API:
 - `ProbWrapper(model)` — wraps FlexibleGATNet so the Explainer sees a
   softmax-output, multiclass model (SPEC §5.2 step 4 / §3.1).
 - `explain_checkpoint(loaded, cfg) -> List[TrialAttribution]` — runs the
-  explainer on every val graph of one fold/subject; the smoke test calls
-  this directly so CI doesn't have to chew through every fold.
+  selected estimator on every val graph of one fold/subject.
 - `run_sg(cfg) -> PopulationResult` — full matrix entry: discovers all
   checkpoints for the (arch, hb, regime, mt) cell, explains them, and
   aggregates into the SPEC §7.3 deliverable.
@@ -24,7 +37,11 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch_geometric.data import Data
 from torch_geometric.explain import Explainer
-from torch_geometric.explain.algorithm import GNNExplainer
+from torch_geometric.explain.algorithm import (
+    AttentionExplainer,
+    CaptumExplainer,
+    GNNExplainer,
+)
 
 from src.xai.aggregate import PopulationResult, TrialAttribution, aggregate_population
 from src.xai.channels import N_CH
@@ -76,53 +93,108 @@ class ProbWrapper(nn.Module):
 # ---------------------------------------------------------------------------
 
 
+_MODEL_CONFIG = dict(
+    mode="multiclass_classification",
+    task_level="graph",
+    return_type="probs",
+)
+
+
 def _build_gnn_explainer(model: nn.Module, cfg: XAIRunConfig) -> Explainer:
-    """Canonical PyG 2.7.0 wiring for SPEC §5.2 step 5."""
+    """SPEC §5.2 step 5 — primary path."""
     return Explainer(
         model=model,
         algorithm=GNNExplainer(epochs=cfg.gnn_explainer_epochs, lr=cfg.gnn_explainer_lr),
         explanation_type="model",
         node_mask_type="attributes",
         edge_mask_type="object",
-        model_config=dict(
-            mode="multiclass_classification",
-            task_level="graph",
-            return_type="probs",
-        ),
+        model_config=_MODEL_CONFIG,
     )
 
 
+def _build_captum_explainer(model: nn.Module, cfg: XAIRunConfig) -> Explainer:
+    """SPEC §5.3 / §15.7 — IntegratedGradients via Captum."""
+    return Explainer(
+        model=model,
+        algorithm=CaptumExplainer("IntegratedGradients"),
+        explanation_type="model",
+        node_mask_type="attributes",     # CaptumExplainer accepts None | 'attributes'
+        edge_mask_type="object",
+        model_config=_MODEL_CONFIG,
+    )
+
+
+def _build_attention_explainer(model: nn.Module, cfg: XAIRunConfig) -> Explainer:
+    """SPEC §15.4 — auto-extract GATv2 attention; edge-mask only.
+
+    AttentionExplainer.supports() rejects any node_mask_type, so this
+    estimator produces no node_mask. The reductions in
+    `_per_trial_reductions` derive channel_importance from the row-sum of
+    the symmetric pair matrix instead.
+    """
+    return Explainer(
+        model=model,
+        algorithm=AttentionExplainer(reduce="mean"),   # SPEC §6.3 default
+        explanation_type="model",
+        node_mask_type=None,
+        edge_mask_type="object",
+        model_config=_MODEL_CONFIG,
+    )
+
+
+def _build_explainer(model: nn.Module, cfg: XAIRunConfig) -> Explainer:
+    if cfg.estimator == "gnn":
+        return _build_gnn_explainer(model, cfg)
+    if cfg.estimator == "captum_ig":
+        return _build_captum_explainer(model, cfg)
+    if cfg.estimator == "attention":
+        return _build_attention_explainer(model, cfg)
+    raise ValueError(f"unknown cfg.estimator={cfg.estimator!r}")
+
+
 def _per_trial_reductions(
-    node_mask: torch.Tensor,           # [N, F]
-    edge_mask: torch.Tensor,           # [E]
-    edge_index: torch.Tensor,           # [2, E]
-) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    node_mask: Optional[torch.Tensor],   # [N, F] for gnn/captum_ig; None for attention
+    edge_mask: torch.Tensor,             # [E]
+    edge_index: torch.Tensor,             # [2, E]
+) -> tuple[np.ndarray, Optional[np.ndarray], np.ndarray]:
     """SPEC §5.2 step 7 — channel × feature × pair-matrix reductions.
+
+    For estimators that produce a node_mask (gnn, captum_ig):
+      channel_importance = |node_mask|.sum(features)
+      feature_importance = |node_mask|.sum(channels)
+    For attention (no node_mask):
+      channel_importance = row-sum of the symmetric pair matrix
+      feature_importance = None  (attention has no per-feature breakdown)
 
     The dataset is built directed (`directed=True`), so each channel pair
     contributes two edges (i→j and j→i) with identical edge_attr. Sum the
     edge_mask onto an asymmetric (i, j) accumulator and symmetrise — this
     is loss-free per SPEC §5.2 step 7.
     """
-    abs_node = node_mask.abs()
-    channel_importance = abs_node.sum(dim=1).cpu().numpy().astype(np.float32)
-    feature_importance = abs_node.sum(dim=0).cpu().numpy().astype(np.float32)
-
     pair = np.zeros((N_CH, N_CH), dtype=np.float32)
     ei = edge_index.cpu().numpy()
     em = edge_mask.detach().cpu().numpy()
     for e in range(em.shape[0]):
         pair[int(ei[0, e]), int(ei[1, e])] += float(em[e])
     pair = (pair + pair.T) / 2.0
+
+    if node_mask is None:
+        channel_importance = pair.sum(axis=1).astype(np.float32)
+        feature_importance: Optional[np.ndarray] = None
+    else:
+        abs_node = node_mask.abs()
+        channel_importance = abs_node.sum(dim=1).cpu().numpy().astype(np.float32)
+        feature_importance = abs_node.sum(dim=0).cpu().numpy().astype(np.float32)
     return channel_importance, feature_importance, pair
 
 
 def explain_checkpoint(loaded: LoadedCheckpoint, cfg: XAIRunConfig) -> List[TrialAttribution]:
-    """Run GNNExplainer on every val graph of `loaded`.
+    """Run the configured estimator (`cfg.estimator`) on every val graph.
 
-    Stochastic — GNNExplainer learns the masks via Adam from a random init.
-    `torch.manual_seed(cfg.seed)` before each trial gives per-trial
-    reproducibility (SPEC §10.5).
+    'gnn' / 'captum_ig' are stochastic / iterative; `torch.manual_seed(cfg.seed)`
+    is reset per trial for reproducibility (SPEC §10.5). 'attention' is
+    deterministic — `cfg.seed` is reset for consistency but has no effect
+    on the output.
     """
     if cfg.arch != "sg":
         raise ValueError(f"explain_checkpoint(SG) requires cfg.arch='sg', got {cfg.arch!r}")
@@ -130,7 +202,7 @@ def explain_checkpoint(loaded: LoadedCheckpoint, cfg: XAIRunConfig) -> List[Tria
     device = torch.device(cfg.device)
     model = loaded.model.to(device).eval()
     prob_model = ProbWrapper(model).to(device).eval()
-    explainer = _build_gnn_explainer(prob_model, cfg)
+    explainer = _build_explainer(prob_model, cfg)
 
     trial_atts: List[TrialAttribution] = []
     trial_idx_per_subject: dict[str, int] = {}
@@ -162,8 +234,10 @@ def explain_checkpoint(loaded: LoadedCheckpoint, cfg: XAIRunConfig) -> List[Tria
             batch=batch_vec,
         )
 
+        # AttentionExplainer doesn't populate a node_mask; the others do.
+        node_mask = getattr(explanation, "node_mask", None)
         ch_imp, feat_imp, pair = _per_trial_reductions(
-            explanation.node_mask, explanation.edge_mask, data.edge_index,
+            node_mask, explanation.edge_mask, data.edge_index,
         )
         trial_atts.append(TrialAttribution(
             subject_id=sid,
@@ -211,7 +285,7 @@ def run_sg(cfg: XAIRunConfig) -> PopulationResult:
         all_trials.extend(explain_checkpoint(loaded, cfg))
 
     extras: dict = {
-        "estimator": "GNNExplainer",
+        "estimator": cfg.estimator,
         "gnn_explainer_epochs": cfg.gnn_explainer_epochs,
         "gnn_explainer_lr": cfg.gnn_explainer_lr,
         "n_checkpoints": len(infos),
