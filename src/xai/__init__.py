@@ -32,6 +32,10 @@ from src.xai.sg_explainer import (
     explain_checkpoint as explain_sg_checkpoint,
     run_sg,
 )
+from src.xai.st_explainer import (
+    explain_checkpoint as explain_st_checkpoint,
+    run_st,
+)
 
 __all__ = [
     "CHANNEL_NAMES",
@@ -51,4 +55,6 @@ __all__ = [
     "ProbWrapper",
     "explain_sg_checkpoint",
     "run_sg",
+    "explain_st_checkpoint",
+    "run_st",
 ]
