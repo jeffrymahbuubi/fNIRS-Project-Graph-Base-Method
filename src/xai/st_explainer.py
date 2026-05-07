@@ -212,15 +212,19 @@ def _build_st_object_explainer(model: torch.nn.Module, cfg: XAIRunConfig) -> Exp
 
 
 def _supplementary_per_trial_reductions(
-    node_mask: torch.Tensor,             # [N] (object mask)
+    node_mask: torch.Tensor,             # [N] or [N, 1] (object mask; PyG returns [N, 1])
     edge_mask: torch.Tensor,             # [E]
     edge_index: torch.Tensor,             # [2, E]
 ) -> Tuple[np.ndarray, np.ndarray]:
     """Returns (channel_importance[23], pair_matrix[23,23] symmetric)."""
-    channel_importance = node_mask.detach().abs().cpu().numpy().astype(np.float32)
+    nm = node_mask.detach().abs()
+    # PyG 2.7's GNNExplainer reports `node_mask_type='object'` as [N, 1].
+    if nm.ndim == 2 and nm.shape[1] == 1:
+        nm = nm.squeeze(-1)
+    channel_importance = nm.cpu().numpy().astype(np.float32)
     if channel_importance.ndim != 1 or channel_importance.shape[0] != N_CH:
         raise ValueError(
-            f"object node_mask must be shape ({N_CH},), got {channel_importance.shape}"
+            f"object node_mask must reduce to shape ({N_CH},), got {channel_importance.shape}"
         )
 
     pair = np.zeros((N_CH, N_CH), dtype=np.float32)
@@ -269,12 +273,17 @@ def explain_supplementary_checkpoint(
         torch.manual_seed(cfg.seed)
         np.random.seed(cfg.seed)
 
-        explanation = explainer(
-            x=data.x,
-            edge_index=data.edge_index,
-            edge_attr=data.edge_attr,
-            batch=batch_vec,
-        )
+        # cuDNN's GRU backward path requires training mode. The model is in
+        # eval mode here (so dropout etc. don't fire), so we disable cuDNN
+        # for this call — falls back to the native autograd-friendly RNN
+        # kernel. Slower per call but only matters at LOSO scale.
+        with torch.backends.cudnn.flags(enabled=False):
+            explanation = explainer(
+                x=data.x,
+                edge_index=data.edge_index,
+                edge_attr=data.edge_attr,
+                batch=batch_vec,
+            )
         ch_imp, pair = _supplementary_per_trial_reductions(
             explanation.node_mask, explanation.edge_mask, data.edge_index,
         )
