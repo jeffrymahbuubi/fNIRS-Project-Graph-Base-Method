@@ -43,6 +43,7 @@ from src.xai.visualize import (
     plot_sg_vs_st_scatter,
     plot_pair_matrix_diff,
 )
+from src.xai.io import write_run_json, read_run_json
 
 __all__ = [
     "CHANNEL_NAMES",
@@ -69,4 +70,6 @@ __all__ = [
     "plot_temporal_attention",
     "plot_sg_vs_st_scatter",
     "plot_pair_matrix_diff",
+    "write_run_json",
+    "read_run_json",
 ]
