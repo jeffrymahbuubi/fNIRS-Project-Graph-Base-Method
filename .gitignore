@@ -87,6 +87,7 @@ data/processed-*
 # ─── Experiment artefacts: keep .pkl + config.yaml; skip large/regenerable ───
 experiments/**/*.pt
 experiments/**/*.png
+experiments/**/results.md
 
 # ─── AgentDB / RuFlo runtime databases ───────────────────────────────
 agentdb.rvf
