@@ -5,7 +5,7 @@ blocks live in [`src/xai/`](../../xai/); these notebooks are thin
 wrappers that handle paths, run the matrix sweeps, and produce the
 SPEC §7.3 deliverables for the paper.
 
-Reference: [`docs/SPEC_xai_graph.md`](../../../docs/SPEC_xai_graph.md) (rev. 4).
+Reference: [`docs/SPEC_xai_graph.md`](../../../docs/SPEC_xai_graph.md) (rev. 5).
 
 ## Run order
 
@@ -15,9 +15,12 @@ Reference: [`docs/SPEC_xai_graph.md`](../../../docs/SPEC_xai_graph.md) (rev. 4).
 | 1 | [`01_sg_population.ipynb`](01_sg_population.ipynb) | SG full sweep: 3 regimes × 2 mt × 3 estimators = 18 PopulationResults. | 2–4 h total |
 | 2 | [`02_st_population.ipynb`](02_st_population.ipynb) | ST full sweep: 3 regimes × 2 mt × {native, supplementary} = 12 PopulationResults. | 30–60 min |
 | 3 | [`03_cross_arch_comparison.ipynb`](03_cross_arch_comparison.ipynb) | Loads saved CSVs from 01/02; computes SPEC §11 C3/C4/C5/C6 acceptance; renders cross-arch scatter + pair-matrix-diff. | 1–2 min |
+| 4 | [`04_atlas_registration.ipynb`](04_atlas_registration.ipynb) *(rev. 5)* | Builds `channel_to_brodmann.csv` once via MNE/fsaverage Procrustes; re-aggregates every 01/02 cell at the Brodmann-region level; runs SPEC §11 C8 acceptance. **Replaces** the hand-crafted VMPFC/DMPFC/DLPFC table as the single source of truth for region attribution. | 1–2 min (after one-time fsaverage download) |
 
 01 and 02 are independent — run them in parallel if you have the GPU
-budget. 03 needs at least some cells of 01 and 02 saved.
+budget. 03 and 04 both consume the saved CSVs from 01/02; 04 only needs
+01/02 outputs that already exist on disk (it autodiscovers cells), so it
+can be re-run any time the channel-level XAI is updated.
 
 ## Kernel requirements
 
@@ -78,12 +81,25 @@ research/xai/
 │       ├── temporal_attention.csv          (native only)
 │       └── fig_temporal_attention.{png,svg}  (native only)
 │
-└── cross_arch/                       ← 03_cross_arch_comparison
-    ├── {regime}_mt{N}/fig_sg_vs_st_scatter.{png,svg}
-    │                  fig_pair_matrix_diff.{png,svg}
-    ├── cross_arch_comparison.csv
-    ├── cross_arch_comparison.md
-    └── cross_arch_pair_diffs.npy + .keys.json
+├── cross_arch/                       ← 03_cross_arch_comparison
+│   ├── {regime}_mt{N}/fig_sg_vs_st_scatter.{png,svg}
+│   │                  fig_pair_matrix_diff.{png,svg}
+│   ├── cross_arch_comparison.csv
+│   ├── cross_arch_comparison.md
+│   └── cross_arch_pair_diffs.npy + .keys.json
+│
+└── atlas/                            ← 04_atlas_registration  (rev. 5)
+    ├── channel_to_brodmann.csv          ← single source of truth (long)
+    ├── channel_midpoints_mni.csv        ← projection diagnostics
+    ├── registration_run.json            ← ELC sha256, fsaverage version, fiducial RMSE, 4×4 trans
+    ├── fig_montage_brodmann.{png,svg}   ← 5×7 grid coloured by primary BA
+    ├── fig_surface_atlas.{png,svg}      ← 3D fsaverage scatter of 23 channels
+    └── {sg, st}/{regime}/mt{N}/{sub}/
+        ├── region_importance.csv        ← BA × hemi × {mean, n_channels_contrib, p_mass_total}
+        ├── region_pair_matrix.npy       ← N_BA × N_BA symmetric
+        ├── region_keys.csv              ← row/col ordering for the matrix
+        ├── fig_region_bar.{png,svg}
+        └── fig_region_pair_heatmap.{png,svg}
 ```
 
 ## SPEC §11 acceptance — where each criterion is evaluated
@@ -96,6 +112,7 @@ research/xai/
 | C4 | SG 3-way (gnn / captum_ig / attention) | ρ ≥ 0.4 between any two | summary cell of 01; aggregated in 03 |
 | C5 | ST native vs supplementary | ρ ≥ 0.4 | summary cell of 02; aggregated in 03 |
 | C6 | Biological-prior overlap (advisory) | ≥ 2 of `{S1_D1, S5_D5, S3_D3, S2_D1, S4_D5, S4_D7}` in top-10 | 03 |
+| C8 | Atlas registration sanity *(rev. 5)* | parser / projection ≤ 35 mm / S2_D1 → BA10 ≥ 0.5 | summary cell of 04; also `tests/xai/test_atlas_registration.py` |
 
 ## Tweakables
 
