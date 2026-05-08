@@ -84,6 +84,10 @@ data/processed-*
 *_evoked.png
 *_time_marker.png
 
+# ─── Experiment artefacts: keep .pkl + config.yaml; skip large/regenerable ───
+experiments/**/*.pt
+experiments/**/*.png
+
 # ─── AgentDB / RuFlo runtime databases ───────────────────────────────
 agentdb.rvf
 agentdb.rvf.lock
