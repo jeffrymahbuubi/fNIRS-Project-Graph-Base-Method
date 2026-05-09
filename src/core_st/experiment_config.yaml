@@ -13,7 +13,7 @@
 # Graph construction (data-level hyperparameters)
 # ---------------------------------------------------------------------------
 data:
-  max_trials: 2          # max trial files loaded per subject (null = all)
+  max_trials: 2          # max trial files loaded per subject (null = all)  [May-3 Optuna lr_cosine search ran on mt4; sweep scripts override per run]
   directed: true         # use directed edges (true) or undirected (false)
   corr_threshold: 0.1    # minimum |Pearson r| for an edge to be included
   self_loops: true       # include self-loop edges on each node
@@ -41,10 +41,12 @@ temporal:
   temporal_layers: 1     # number of GRU layers  [Optuna best: was 1]
 
 # ---------------------------------------------------------------------------
-# Training (LR scheduler — CORAL-validated default)
+# Training (LR scheduler — May-3 Optuna lr_cosine best, Trial #36)
 # ---------------------------------------------------------------------------
 training:
   scheduler: cosine_annealing   # cosine_annealing | cosine_warmup | reduce_on_plateau
+                                # May-3 best params: T_max = cfg.epochs (150), eta_min = 1e-5 (CLI --eta_min default).
+                                # Pair with --lr 3.04e-4 for the published baseline.
 
 # ---------------------------------------------------------------------------
 # Augmentation (applied to training set only)
