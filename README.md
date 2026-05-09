@@ -133,11 +133,82 @@ data/splits/kfold_splits_processed_old.json   # 51 subjects, seed 42
 
 ---
 
+## Overall Results
+
+Leak-free cross-validation sweep over both pipelines × `{HBO, HBR, HBT}` × `max_trials ∈ {2, 4}`, on the 62-subject GNG cohort. Numbers below are read from:
+
+- `experiments/spatial_graph/experiment_metrics.xlsx`
+- `experiments/spatial_temporal_graph/experiment_metrics.xlsx`
+
+The best row in each CV strategy is **bolded**.
+
+### 5-Fold Cross-Validation (62 subjects, 5 folds)
+
+| Pipeline | Signal | mt | Acc (Mean±SD) | F1 (Mean±SD) | Overall Acc | Overall F1 |
+|---|---|---:|---|---|---:|---:|
+| Spatial | HBO | 2 | 0.710±0.125 | 0.759±0.068 | 0.7097 | 0.7534 |
+| Spatial | HBO | 4 | 0.600±0.087 | 0.692±0.044 | 0.6008 | 0.6897 |
+| Spatial | HBR | 2 | 0.708±0.081 | 0.753±0.051 | 0.7097 | 0.7534 |
+| Spatial | HBR | 4 | 0.626±0.126 | 0.694±0.067 | 0.6290 | 0.6913 |
+| Spatial | HBT | 2 | 0.696±0.153 | 0.748±0.096 | 0.6935 | 0.7397 |
+| Spatial | HBT | 4 | 0.573±0.117 | 0.678±0.057 | 0.5726 | 0.6728 |
+| ST | HBO | 2 | 0.758±0.104 | 0.779±0.085 | 0.7581 | 0.7761 |
+| ST | HBO | 4 | 0.712±0.089 | 0.748±0.067 | 0.7137 | 0.7473 |
+| ST | HBR | 2 | 0.740±0.130 | 0.782±0.083 | 0.7419 | 0.7746 |
+| ST | HBR | 4 | 0.749±0.088 | 0.771±0.079 | 0.7500 | 0.7721 |
+| **ST** | **HBT** | **2** | **0.765±0.112** | **0.788±0.096** | **0.7661** | **0.7852** |
+| ST | HBT | 4 | 0.704±0.089 | 0.733±0.077 | 0.7056 | 0.7345 |
+
+### 10-Fold Cross-Validation (62 subjects, 10 folds)
+
+| Pipeline | Signal | mt | Acc (Mean±SD) | F1 (Mean±SD) | Overall Acc | Overall F1 |
+|---|---|---:|---|---|---:|---:|
+| Spatial | HBO | 2 | 0.782±0.075 | 0.794±0.057 | 0.7823 | 0.7939 |
+| Spatial | HBO | 4 | 0.654±0.104 | 0.722±0.051 | 0.6532 | 0.7152 |
+| Spatial | HBR | 2 | 0.762±0.130 | 0.807±0.075 | 0.7661 | 0.8000 |
+| Spatial | HBR | 4 | 0.607±0.097 | 0.693±0.058 | 0.6089 | 0.6959 |
+| Spatial | HBT | 2 | 0.780±0.106 | 0.804±0.081 | 0.7823 | 0.8000 |
+| Spatial | HBT | 4 | 0.651±0.117 | 0.721±0.071 | 0.6492 | 0.7148 |
+| ST | HBO | 2 | 0.781±0.132 | 0.806±0.096 | 0.7823 | 0.8000 |
+| ST | HBO | 4 | 0.747±0.114 | 0.775±0.080 | 0.7500 | 0.7721 |
+| ST | HBR | 2 | 0.756±0.133 | 0.791±0.087 | 0.7581 | 0.7857 |
+| ST | HBR | 4 | 0.752±0.125 | 0.787±0.070 | 0.7540 | 0.7798 |
+| **ST** | **HBT** | **2** | **0.796±0.132** | **0.813±0.093** | **0.7984** | **0.8092** |
+| ST | HBT | 4 | 0.757±0.122 | 0.782±0.071 | 0.7581 | 0.7761 |
+
+### Leave-One-Subject-Out (LOSO, 62 subjects)
+
+LOSO yields a single 0/1 outcome per held-out subject, so per-fold `Mean±SD` is uninformative (SD ≈ 0.5 by construction). The table reports the **pooled** classification metrics aggregated over all 62 subject predictions.
+
+| Pipeline | Signal | mt | Acc | Sens | Spec | Prec | F1 |
+|---|---|---:|---:|---:|---:|---:|---:|
+| Spatial | HBO | 2 | 0.7097 | 1.0000 | 0.4545 | 0.6170 | 0.7632 |
+| Spatial | HBO | 4 | 0.6573 | 1.0000 | 0.3561 | 0.5771 | 0.7319 |
+| Spatial | HBR | 2 | 0.7419 | 1.0000 | 0.5152 | 0.6444 | 0.7838 |
+| Spatial | HBR | 4 | 0.6935 | 1.0000 | 0.4242 | 0.6042 | 0.7532 |
+| Spatial | HBT | 2 | 0.7097 | 1.0000 | 0.4545 | 0.6170 | 0.7632 |
+| Spatial | HBT | 4 | 0.6452 | 1.0000 | 0.3333 | 0.5686 | 0.7250 |
+| ST | HBO | 2 | 0.7097 | 0.9828 | 0.4697 | 0.6196 | 0.7600 |
+| ST | HBO | 4 | 0.7218 | 1.0000 | 0.4773 | 0.6270 | 0.7708 |
+| ST | HBR | 2 | 0.7258 | 1.0000 | 0.4848 | 0.6304 | 0.7733 |
+| ST | HBR | 4 | 0.7460 | 0.9828 | 0.5379 | 0.6514 | 0.7835 |
+| **ST** | **HBT** | **2** | **0.7661** | **1.0000** | **0.5606** | **0.6667** | **0.8000** |
+| ST | HBT | 4 | 0.7379 | 0.9914 | 0.5152 | 0.6425 | 0.7797 |
+
+### Headlines
+
+- The Spatial-Temporal pipeline beats the Spatial-only pipeline on every CV strategy.
+- **Best Spatial:** 10-fold · HBO · `mt=2` → Acc 0.782±0.075, F1 0.794±0.057.
+- **Best ST (paper baseline):** 10-fold · HBT · `mt=2` → **Acc 0.796±0.132, F1 0.813±0.093**.
+- LOSO is the most conservative protocol; ST · HBT · `mt=2` retains the lead at Acc 0.7661 / F1 0.8000.
+
+---
+
 ## Reproducing Results — Spatial Pipeline (`src/core`)
 
 The spatial pipeline treats each fNIRS trial as a single graph and classifies it with GATv2.
 
-**Best configuration (2026-04-29):** HBO · max\_trials=2 · 5-fold · with additional data → **Mean Acc 0.8237, Mean F1 0.8065**
+**Best configuration (leak-free, 62 subjects):** HBO · `max_trials=2` · 10-fold → **Mean Acc 0.782±0.075, Mean F1 0.794±0.057**. See [Overall Results](#overall-results) for the full sweep.
 
 ### Hyperparameters (from `src/core/experiment_config.yaml`)
 
