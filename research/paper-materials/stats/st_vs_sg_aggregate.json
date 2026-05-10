@@ -1,0 +1,10 @@
+{
+  "aggregate_wilcoxon_kfold_only": {
+    "n_cells": 12,
+    "mean_st_f1": 0.7766190340121587,
+    "mean_sg_f1": 0.7388625552256901,
+    "delta_mean": 0.037756478786468595,
+    "w_stat": 3.0,
+    "p_value": 0.00244140625
+  }
+}
