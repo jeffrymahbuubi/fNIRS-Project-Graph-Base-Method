@@ -9,7 +9,16 @@
 > - `research/paper-materials/PAPER_OUTLINE.md` — annotated outline, source of every cross-reference below.
 > - Auto-memory: `project_paper_outline_task_state.md` — resumable task state.
 >
-> **Date created:** 2026-05-10 · **Last updated:** 2026-05-10
+> **Date created:** 2026-05-10 · **Last updated:** 2026-05-11
+>
+> **Progress log (2026-05-11 session — user decisions resolved):**
+> - ✅ **P0.1 venue** — **IEEE TNSRE** (Transactions on Neural Systems and Rehabilitation Engineering). 8-page limit, IEEE numeric citations, supplementary supported. Drives §3.2 main-table size budget.
+> - ✅ **P0.2 chromophore split** — **HbO + HbR in main; HbT in supplementary**. Matches statistical-analysis arm (HbO) + LOSO winner (HbR). HbT (CBSI-derived, r(HbO,HbR)=−1) goes to SI_Table_S1.
+> - ✅ **P0.3 SG comparator placement** — **Side-by-side ST + SG in main results table** (NOT supplementary). User chose symmetric presentation over supplementary-only. **Implication flagged:** main table size depends on mt2/mt4 inclusion (see open question below).
+> - ✅ **P0.4 citation style** — **IEEE numeric** `[1], [2], …`. `research/paper-materials/references/refs.bib` keys stay; bibliography style switches to IEEEtran/ACM-numeric when LaTeX scaffold lands.
+>
+> **Resolved 2026-05-11 — mt main-table inclusion:**
+> ✅ **Both mt2 and mt4 in main results table** (24 rows total: HbO+HbR × {5-fold, 10-fold, LOSO} × {ST, SG} × {mt2, mt4}). Full ablation in main. **Implication for SPEC plan:** IEEE TNSRE 8-page budget is tight — main table will consume ~1.0–1.5 pages. SPEC plan §3.2 must keep figure count lean (recommend: 1 confusion-matrix figure + 1 training-curve figure + 1 ST-vs-SG comparison figure = 3 main figures). XAI section §3.3 should aim for 2 main figures (montage importance + temporal attention).
 >
 > **Progress log (2026-05-10 session 2):**
 > - ✅ **P0.5 PAPER_MATH.md** — written, verified against `src/core/utils.py` and `src/core_st/models.py`, 10 numbered equations E1..E10 with source line references and citation key placeholders. Saved to `research/paper-materials/PAPER_MATH.md`.

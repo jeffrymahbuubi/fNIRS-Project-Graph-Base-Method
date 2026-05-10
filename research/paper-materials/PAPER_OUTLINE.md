@@ -47,6 +47,11 @@ without re-running anything.
 | Atlas registration | Brodmann via fsaverage midpoint projection (in scope); MCX Monte Carlo deferred | `docs/SPEC_xai_graph.md §16` |
 | Cohort exclusion | Keep all 62 subjects in main table; pre-specified sensitivity drops (AH024, AH029, LA063, demographics-missing 11) are **future-work** appendix material | `data/DATA_QUALITY_REPORT.md §6`; `FUTURE_ANALYSES.md §1.3` |
 | Age confound | Acknowledged limitation; ANCOVA done in `05_age_adjusted` for §02 metric | `02_brain_activation/REPORT.md §6` cross-references §05 |
+| **Target venue** (locked 2026-05-11) | **IEEE TNSRE** — 8-page limit, IEEE numeric citations, supplementary supported | User decision P0.1 |
+| **Chromophore main vs supp** (locked 2026-05-11) | **HbO + HbR in main; HbT supplementary** | User decision P0.2 |
+| **SG comparator placement** (locked 2026-05-11) | **Side-by-side ST + SG in main results table** (NOT supplementary) | User decision P0.3 |
+| **Citation style** (locked 2026-05-11) | **IEEE numeric** `[1], [2], ...` — applies to `references/refs.bib` and all drafts | User decision P0.4 |
+| **mt2 + mt4 in main table** (locked 2026-05-11) | **Both mt2 and mt4 in main results table** (24 rows: HbO+HbR × {5-fold, 10-fold, LOSO} × {ST, SG} × {mt2, mt4}). Tight for IEEE TNSRE 8-page budget — SPEC plan must carefully ration figure count and prose. | User decision (P0.3 follow-up) |
 
 ---
 
