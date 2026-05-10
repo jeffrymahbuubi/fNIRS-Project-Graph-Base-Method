@@ -1,13 +1,14 @@
 # SPEC: Graph Explainability for fNIRS GNN (`src/core/` + `src/core_st/`)
 
-**Status:** Draft (rev. 5)
-**Date:** 2026-05-08
+**Status:** Draft (rev. 6)
+**Date:** 2026-05-10
 **Author:** Aunuun Jeffry Mahbuubi
 **Targets:** `src/core/FlexibleGATNet` (Spatial Graph) and `src/core_st/WindowedSpatioTemporalGATNet` (Spatial-Temporal)
 **Execution model:** **Jupyter notebook driven**. Reusable building blocks live in `src/xai/` and are imported by notebooks under `src/notebook/xai/`. No CLI entry point — all runs are notebook cells (mirrors how `src/notebook/4_non_recurrent_gnn.ipynb` and `src/notebook/statistical-analysis/*.ipynb` already work in this project).
 **PyG version pin:** `torch_geometric==2.7.0` (verified 2026-05-07 against `src/requirements.txt` runtime). All API claims in §5, §6, §15 are valid for this version.
 
 **Changelog**
+- **rev. 6 (2026-05-10):** ST checkpoint set migrated from `research/experiments/20260501/spatial_temporal_graph/{5-fold,10-fold,loso}/` → `research/experiments/20260509/{st-kfold/{5,10}-fold/20260509,loso}/`. Motivation: the 20260501 LOSO config drifted from its kfold counterpart (n_layers 2→3, temporal_layers 1→3, n_heads 2→6, n_filters 80→96, window 16→48; see `research/experiments/20260509/CONFIG_VS_BASELINE_REPORT.md`). 20260509 uses a single uniform architecture across 5-fold / 10-fold / LOSO, makes the three regimes directly comparable, and trained on all three chromophores. Result: LOSO accuracy +5.5 pp mean (max +9.7 pp on HbR mt2); kfold within run-to-run noise. **XAI scope expanded:** ST chromophore now `{hbo, hbr, hbt}` (was HbO-only in rev. 5). SG remains HbO-only until SG retraining lands. New layout introduces an extra date-named layer for kfold (`st-kfold/{5,10}-fold/<date>/`) — handled via `XAIRunConfig.experiment_subdir` override (default `None` → uses canonical `_REGIME_SUBDIR[arch][regime]`). Output paths gained an `{hb}/` layer: `research/xai/st/{hb}/{regime}/mt{N}/{path}/`. Decision #1 (HbO only) in `project_xai_task_state.md` is superseded for ST. SG sections, atlas pipeline (rev. 5), and SPEC §11 acceptance criteria are unchanged.
 - **rev. 5 (2026-05-08):** Atlas registration promoted from out-of-scope to in-scope. The two electrode files in `data/` (`brainproducts-RNP-BA-128-custom.elc` for the project's 16-optode prefrontal montage; `brainproducts-RNP-BA-128-org.elc` for the parent BA-128 cap reference) provide head-coordinate optode positions plus LPA/Nz/RPA fiducials, sufficient to register the 23 channel midpoints to fsaverage and look up Brodmann labels via MNE-Python (verified locally: `mne==1.12.0`). New section §16 specifies the implementation; new module `src/xai/atlas.py` and new notebook `src/notebook/xai/04_atlas_registration.ipynb` deliver it. The hand-crafted 6-region table (VMPFC_L/R, DMPFC_L/R, DLPFC_L/R) used in the prior region-level analysis is **replaced** by atlas-derived Brodmann assignments — single source of truth, not a parallel one. Atlas pass: **midpoint projection only (template-head, no MCX Monte Carlo)**; AtlasViewer/MCX-based sensitivity-weighted mapping remains future work (§16.10). Acceptance criterion C8 added for the atlas pass. §11 C6's biological-prior channel list is unchanged; the C6 check now optionally runs at the BA-region level too. §15 (PyG appendix) is untouched and remains pinned to the rev. 3/4 verification; rev. 5 changes are confined to §2, §4, §11, §13, §14, new §16, and renumber-only on §17 References.
 - **rev. 4 (2026-05-08):** Realigned the data-path model with the actual checkpoint inventory. Findings during Phase A recon: (a) all SG runs (kfold + LOSO) and all ST runs share `data/processed-new-mc`; rev. 1–3's claim that SG used `processed-new` was wrong for current checkpoints. (b) SG kfold + ST kfold share `data/splits/kfold_splits_processed_new_mc.json`; LOSO has `splits_json: null` because LOSO splits are derived in-code from dataset subject IDs (`dataset.py:get_loso_splits`). (c) One in-scope SG checkpoint (HbO mt4 LOSO, 20260506) was trained on a cloud instance whose `config.yaml` records `/root/remote-training-setup/data/processed-new-mc`. SPEC now specifies an **auto-rebase rule** in §10.4: `data_dir` is read from the checkpoint's own `config.yaml` and rebased to `<project_root>/data/<basename>` if the literal path is unreachable, with the rewrite logged in `run.json`. (d) §9.2/§9.3 cell patterns updated: `data_dir` and `splits_json` are no longer required `XAIRunConfig` fields — they're derived from the checkpoint and made overridable. (e) The "SG-vs-ST silent leakage" risk in old §10.4 is removed; SG and ST share data and (for kfold) splits, so the only validation needed is the rebase + the standard fold-leak-free `compute_stats(train_indices)` pattern. C1 acceptance criterion clarified: target is the final-scalar `f1_score` field of `*_fold_F.pkl` (not `max(val_f1)`), to within ±0.005.
 - rev. 3 (2026-05-07): Added §15 PyG API Reference appendix. APIs cross-checked against installed `torch_geometric==2.7.0` via `mcp__context7__*` and `inspect.signature`. Notable upgrades discovered during the doc pass: (a) PyG ships a built-in `AttentionExplainer` that auto-aggregates GAT/GATv2 attention across layers/heads — added as a candidate cross-check for ST §6.4 and as a fast alternative for SG §5.3; (b) `Explainer.__call__` signature confirmed as `(x, edge_index, *, target=None, index=None, **kwargs)` — `edge_attr` and `batch` go through `**kwargs`; (c) `ThresholdConfig(threshold_type='topk', value=K)` can replace manual top-K post-processing on edge masks. No §1–§14 semantics changed; §5.3, §6.4, §11 references the new appendix.
@@ -41,18 +42,18 @@ ST provides **both** temporal localisation (which seconds matter) and spatial gr
 
 ## 2. Scope
 
-### 2.1 In Scope (per user clarification, 2026-05-07)
-- **Chromophore:** HbO only (the primary chromophore per project memory).
+### 2.1 In Scope (per user clarification, 2026-05-07; expanded rev. 6 2026-05-10)
+- **Chromophore:** SG = HbO only (the primary chromophore per project memory). ST = `{hbo, hbr, hbt}` *(rev. 6 expansion)* — the 20260509 ST checkpoint sweep covers all three with a uniform config.
 - **Architectures:** both `src/core/` SG and `src/core_st/` ST.
 - **CV regimes:** all of `kfold-5`, `kfold-10`, `loso`.
   - SG checkpoints live under `research/experiments/20260506/leak-free-patience-9999/spatial-graph/{kfold/5-fold,kfold/10-fold,loso}/...`
-  - ST checkpoints live under `research/experiments/20260501/spatial_temporal_graph/{5-fold,10-fold,loso}/...`
+  - ST checkpoints live under `research/experiments/20260509/{st-kfold/{5,10}-fold/20260509,loso}/...` *(rev. 6; supersedes 20260501)*. Kfold subtree's extra date-named layer is non-canonical → carried via `XAIRunConfig.experiment_subdir`. LOSO matches the canonical `loso/` layout (override = `None`).
 - **Trial counts:** mt=2 and mt=4.
 - **Deliverable level:** **population-level aggregation** — one ranked channel list and one 23×23 channel-pair matrix per architecture × CV regime × mt.
 - **Atlas registration (rev. 5):** Brodmann-area mapping for each of the 23 channels via midpoint projection onto fsaverage, using the existing `data/brainproducts-RNP-BA-128-custom.elc` optode geometry. Produces (a) a single channel→Brodmann probability table that is the **sole** source of truth for region attribution downstream, and (b) region-level importance + region-pair matrices that **replace** the hand-crafted VMPFC/DMPFC/DLPFC table previously used during analysis. Midpoint projection only; MCX Monte Carlo deferred (§2.2). Full implementation spec in §16.
 
 ### 2.2 Out of Scope
-- **HbR / HbT XAI — explicit future work.** Rerun the validated HbO notebook with `hb='hbr'|'hbt'` only after the HbO building blocks have been validated and accepted (per user feedback 2026-05-07).
+- **SG HbR / HbT XAI — explicit future work.** SG was trained on HbO only (the 20260506 leak-free run set is HbO-only). Once SG retraining on HbR/HbT lands, rerun `01_sg_population.ipynb` with `cfg.hb='hbr'|'hbt'`. ST HbR/HbT is now in scope (rev. 6) since the 20260509 sweep covers all three.
 - **AtlasViewer / MCX Monte Carlo sensitivity-weighted mapping — explicit future work (rev. 5).** Photon-migration simulation per channel is the gold standard for region attribution; midpoint projection (in scope, §16) is the first-order approximation that gets ~80 % of the practical accuracy at near-zero compute cost. MCX integration triggers only after the midpoint-based atlas pass is validated (§16.10).
 - LOSO subject-level case studies (defer; a per-subject debugging notebook can reuse the same explainer code).
 - Re-training any model — XAI consumes only existing checkpoints.
@@ -375,12 +376,13 @@ cfg = XAIRunConfig(
     hb="hbo",
     regime="kfold-5",
     mt=2,
-    experiment_root="research/experiments/20260501/spatial_temporal_graph/5-fold",
+    experiment_root="research/experiments/20260509",  # rev. 6
+    experiment_subdir="st-kfold/5-fold/20260509",     # rev. 6 — kfold extra-date layer
     head_reduce="mean",
     layer_reduce="mean",
     run_supplementary_gnnexplainer=False,
     include_misclassified=False,
-    output_dir="research/xai/st/kfold-5/mt2",
+    output_dir="research/xai/st/hbo/kfold-5/mt2",     # rev. 6 — adds {hb}/ prefix
     seed=42,
     device="cuda:0",
 )

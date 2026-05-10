@@ -1,9 +1,9 @@
 """Build per-architecture experiment_metrics.xlsx mirroring the format in
 references/analysis/experiment_metrics.xlsx (minus BA, NPV, MCC, kappa).
 
-For each architecture in {spatial_graph, spatial_temporal_graph}, walks
-experiments/<arch>/{5-fold, 10-fold, loso}/<exp>/, reads per-fold/per-subject
-pickles + the *_overall.pkl, and emits 6 sheets per workbook:
+For each source defined in SOURCES (see below), walks the per-CV
+subdirectories listed in cv_dirs, reads per-fold/per-subject pickles +
+the *_overall.pkl, and emits 6 sheets per workbook:
   - 5-Fold Summary, 5-Fold Detail
   - 10-Fold Summary, 10-Fold Detail
   - LOSO Summary, LOSO Detail
@@ -12,6 +12,12 @@ Metrics: Acc, Sens, Spec, Prec, F1 (no BA/NPV/MCC/kappa).
 Macro = mean ± SD across folds/subjects (per-fold metric, then aggregated).
 Micro = overall_* from the pooled-prediction *_overall.pkl.
 95% CI = mean ± 1.96 * SD / sqrt(n).
+
+Source layout flexibility: each source's `cv_dirs` maps the canonical CV
+key (`5-fold` / `10-fold` / `loso`) to a relative subpath under arch_dir.
+This handles non-canonical layouts like the 20260509 ST sweep where
+kfold lives under `st-kfold/{5,10}-fold/20260509/` while LOSO is at
+`loso/`.
 """
 
 from __future__ import annotations
@@ -26,9 +32,50 @@ import numpy as np
 import pandas as pd
 
 ROOT = Path(__file__).resolve().parent.parent
-EXP_ROOT = ROOT / "experiments"
 
-ARCHITECTURES = ["spatial_graph", "spatial_temporal_graph"]
+# ---------------------------------------------------------------------------
+# Sources — one workbook per entry. Add new layouts here.
+# ---------------------------------------------------------------------------
+#
+# Each entry:
+#   arch_dir: root that contains the cv_dirs subpaths
+#   cv_dirs:  {canonical_cv_key: (relative_subpath, sheet_label_prefix)}
+#   out_path: where the workbook is written
+#
+# 20260501 entries kept for historical comparison; 20260509 (rev. 6) is
+# the new canonical ST source per CONFIG_VS_BASELINE_REPORT.md.
+SOURCES: dict[str, dict] = {
+    "spatial_graph": {
+        "arch_dir": ROOT / "experiments" / "spatial_graph",
+        "cv_dirs": {
+            "5-fold":  ("5-fold",  "5-Fold"),
+            "10-fold": ("10-fold", "10-Fold"),
+            "loso":    ("loso",    "LOSO"),
+        },
+        "out_path": ROOT / "experiments" / "spatial_graph" / "experiment_metrics.xlsx",
+    },
+    "spatial_temporal_graph": {
+        "arch_dir": ROOT / "experiments" / "spatial_temporal_graph",
+        "cv_dirs": {
+            "5-fold":  ("5-fold",  "5-Fold"),
+            "10-fold": ("10-fold", "10-Fold"),
+            "loso":    ("loso",    "LOSO"),
+        },
+        "out_path": ROOT / "experiments" / "spatial_temporal_graph" / "experiment_metrics.xlsx",
+    },
+    # rev. 6 — 20260509 ST sweep with uniform config across all 3 regimes
+    # and all 3 chromophores. Supersedes spatial_temporal_graph for paper-ready
+    # ST numbers; the older entry above is retained for the BASE-vs-NEW comparison.
+    "spatial_temporal_graph_20260509": {
+        "arch_dir": ROOT / "research" / "experiments" / "20260509",
+        "cv_dirs": {
+            "5-fold":  ("st-kfold/5-fold/20260509",  "5-Fold"),
+            "10-fold": ("st-kfold/10-fold/20260509", "10-Fold"),
+            "loso":    ("loso",                      "LOSO"),
+        },
+        "out_path": ROOT / "research" / "experiments" / "20260509" / "experiment_metrics.xlsx",
+    },
+}
 
 # Order matters: how rows appear in the spreadsheet.
 METRIC_KEYS = ["accuracy", "sensitivity", "specificity", "precision", "f1"]
@@ -38,12 +85,6 @@ METRIC_LABELS = {
     "specificity": "Spec",
     "precision": "Prec",
     "f1": "F1",
-}
-
-CV_DIRS = {
-    "5-fold": ("5-fold", "5-Fold"),
-    "10-fold": ("10-fold", "10-Fold"),
-    "loso": ("loso", "LOSO"),
 }
 
 
@@ -175,12 +216,13 @@ def build_detail_row(meta: dict, macro: dict, micro: dict, n: int, cv_label: str
     return row
 
 
-def process_arch(arch: str) -> dict[str, pd.DataFrame]:
-    """Return dict[sheet_name -> DataFrame] for one architecture."""
-    arch_dir = EXP_ROOT / arch
+def process_source(source: dict) -> dict[str, pd.DataFrame]:
+    """Return dict[sheet_name -> DataFrame] for one source entry from SOURCES."""
+    arch_dir: Path = source["arch_dir"]
+    cv_dirs: dict = source["cv_dirs"]
     sheets: dict[str, pd.DataFrame] = {}
 
-    for cv_key, (cv_subdir, cv_label) in CV_DIRS.items():
+    for cv_key, (cv_subdir, cv_label) in cv_dirs.items():
         cv_path = arch_dir / cv_subdir
         if not cv_path.is_dir():
             continue
@@ -229,8 +271,7 @@ def process_arch(arch: str) -> dict[str, pd.DataFrame]:
     return sheets
 
 
-def write_workbook(arch: str, sheets: dict[str, pd.DataFrame]) -> Path:
-    out = EXP_ROOT / arch / "experiment_metrics.xlsx"
+def write_workbook(out: Path, sheets: dict[str, pd.DataFrame]) -> Path:
     sheet_order = [
         "5-Fold Summary",
         "5-Fold Detail",
@@ -276,16 +317,16 @@ def write_workbook(arch: str, sheets: dict[str, pd.DataFrame]) -> Path:
 
 
 def main() -> None:
-    for arch in ARCHITECTURES:
-        print(f"\n=== {arch} ===")
-        sheets = process_arch(arch)
+    for name, source in SOURCES.items():
+        print(f"\n=== {name} ===")
+        sheets = process_source(source)
         if not sheets:
-            print(f"  no data found under experiments/{arch}/ — skipping")
+            print(f"  no data found under {source['arch_dir']} — skipping")
             continue
-        out = write_workbook(arch, sheets)
+        out = write_workbook(source["out_path"], sheets)
         print(f"  wrote {out}")
-        for name, df in sheets.items():
-            print(f"    [{name}] {len(df)} rows x {len(df.columns)} cols")
+        for sheet_name, df in sheets.items():
+            print(f"    [{sheet_name}] {len(df)} rows x {len(df.columns)} cols")
 
 
 if __name__ == "__main__":

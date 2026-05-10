@@ -317,6 +317,7 @@ def run_st_supplementary(cfg: XAIRunConfig) -> PopulationResult:
 
     infos: List[CheckpointInfo] = discover_checkpoints(
         cfg.experiment_root, arch="st", hb=cfg.hb, regime=cfg.regime, mt=cfg.mt,
+        subdir_override=cfg.experiment_subdir,
     )
     if not infos:
         raise FileNotFoundError(
@@ -359,6 +360,7 @@ def run_st(cfg: XAIRunConfig) -> PopulationResult:
 
     infos: List[CheckpointInfo] = discover_checkpoints(
         cfg.experiment_root, arch="st", hb=cfg.hb, regime=cfg.regime, mt=cfg.mt,
+        subdir_override=cfg.experiment_subdir,
     )
     if not infos:
         raise FileNotFoundError(

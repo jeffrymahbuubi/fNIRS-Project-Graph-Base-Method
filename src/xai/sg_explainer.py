@@ -270,6 +270,7 @@ def run_sg(cfg: XAIRunConfig) -> PopulationResult:
 
     infos: List[CheckpointInfo] = discover_checkpoints(
         cfg.experiment_root, arch="sg", hb=cfg.hb, regime=cfg.regime, mt=cfg.mt,
+        subdir_override=cfg.experiment_subdir,
     )
     if not infos:
         raise FileNotFoundError(

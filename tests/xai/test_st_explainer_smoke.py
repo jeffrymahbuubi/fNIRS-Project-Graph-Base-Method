@@ -18,12 +18,19 @@ import numpy as np
 import pytest
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-ST_EXPERIMENT_ROOT = PROJECT_ROOT / "research/experiments/20260501/spatial_temporal_graph"
+# 20260509 layout: kfold lives under st-kfold/<n>-fold/<date>/, LOSO at <root>/loso/.
+ST_EXPERIMENT_ROOT = PROJECT_ROOT / "research/experiments/20260509"
+ST_KFOLD5_SUBDIR = "st-kfold/5-fold/20260509"
 ST_DATA_DIR = PROJECT_ROOT / "data/processed-new-mc"
 ST_SPLITS_JSON = PROJECT_ROOT / "data/splits/kfold_splits_processed_new_mc.json"
 
 
-_ST_PRESENT = ST_EXPERIMENT_ROOT.is_dir() and ST_DATA_DIR.is_dir() and ST_SPLITS_JSON.is_file()
+_ST_PRESENT = (
+    (ST_EXPERIMENT_ROOT / ST_KFOLD5_SUBDIR).is_dir()
+    and (ST_EXPERIMENT_ROOT / "loso").is_dir()
+    and ST_DATA_DIR.is_dir()
+    and ST_SPLITS_JSON.is_file()
+)
 
 
 @pytest.mark.skipif(not _ST_PRESENT, reason="ST checkpoints / dataset / splits missing on this machine")
@@ -58,10 +65,12 @@ def test_st_one_fold_produces_well_shaped_population_result(tmp_path: Path) -> N
         head_reduce="mean",
         layer_reduce="mean",
         seed=42,
+        experiment_subdir=ST_KFOLD5_SUBDIR,
     )
 
     infos = discover_checkpoints(
         ST_EXPERIMENT_ROOT, arch="st", hb="hbo", regime="kfold-5", mt=2,
+        subdir_override=ST_KFOLD5_SUBDIR,
     )
     fold1 = next(i for i in infos if i.fold == 1)
     loaded = load_checkpoint(fold1, cfg)
@@ -172,10 +181,12 @@ def test_st_supplementary_gnn_object_one_fold(tmp_path: Path) -> None:
         gnn_explainer_lr=0.01,
         run_supplementary_gnnexplainer=True,
         seed=42,
+        experiment_subdir=ST_KFOLD5_SUBDIR,
     )
 
     infos = discover_checkpoints(
         ST_EXPERIMENT_ROOT, arch="st", hb="hbo", regime="kfold-5", mt=2,
+        subdir_override=ST_KFOLD5_SUBDIR,
     )
     fold1 = next(i for i in infos if i.fold == 1)
     loaded = load_checkpoint(fold1, cfg)

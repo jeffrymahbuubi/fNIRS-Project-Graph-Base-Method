@@ -94,6 +94,14 @@ class XAIRunConfig:
                           checkpoint's config.yaml has `splits_json: null`,
                           and overrides are still ignored — LOSO splits are
                           always derived in-code from dataset subject IDs.
+    experiment_subdir   : if non-None, used as the relative path under
+                          experiment_root in place of the per-arch/per-regime
+                          default in `_REGIME_SUBDIR`. Needed for the
+                          20260509 ST layout where kfold lives at
+                          `<root>/st-kfold/{5,10}-fold/<date>/...` instead of
+                          the original `<root>/{5,10}-fold/...`. LOSO under
+                          20260509 still matches the default, so leave None
+                          for LOSO cells.
     """
 
     # --- required fields (no defaults) -------------------------------------
@@ -124,6 +132,7 @@ class XAIRunConfig:
     # --- path overrides ----------------------------------------------------
     data_dir_override: Optional[str] = None
     splits_json_override: Optional[str] = None
+    experiment_subdir: Optional[str] = None
 
     # --- internal book-keeping --------------------------------------------
     extra: dict = field(default_factory=dict)

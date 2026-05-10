@@ -236,8 +236,15 @@ def discover_checkpoints(
     hb: str,
     regime: str,
     mt: int,
+    subdir_override: Optional[str] = None,
 ) -> List[CheckpointInfo]:
     """Find every fold/subject checkpoint matching this (arch, hb, regime, mt) cell.
+
+    `subdir_override` replaces the default `_REGIME_SUBDIR[arch][regime]`
+    when provided. Use it to point at non-canonical layouts such as the
+    20260509 ST kfold dirs (`st-kfold/{5,10}-fold/20260509/`). LOSO under
+    20260509 still matches the default ('loso'), so leave override=None
+    for LOSO cells.
 
     Sorts kfold checkpoints by fold number ascending; sorts LOSO checkpoints
     by subject ID lexicographically (matches the order the SG/ST datasets
@@ -246,7 +253,8 @@ def discover_checkpoints(
     if arch not in _EXP_DIR_RE:
         raise ValueError(f"unknown arch {arch!r}")
     regime_token = "kfold" if regime.startswith("kfold-") else "loso"
-    regime_dir = Path(experiment_root) / _regime_subdir(arch, regime)
+    subdir = Path(subdir_override) if subdir_override else _regime_subdir(arch, regime)
+    regime_dir = Path(experiment_root) / subdir
     if not regime_dir.is_dir():
         raise FileNotFoundError(f"regime dir not found: {regime_dir}")
 
