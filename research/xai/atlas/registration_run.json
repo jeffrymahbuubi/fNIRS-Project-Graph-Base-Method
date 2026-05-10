@@ -1,0 +1,39 @@
+{
+  "created_utc": "2026-05-10T20:31:08.604327+00:00",
+  "elc_path": "/home/user/jeffrymahbuubi/PROJECTS/2-fNIRS-Graph-Base-Method/data/brainproducts-RNP-BA-128-custom.elc",
+  "elc_sha256": "9faca5089d6f91c771a9272b8dcc2eef478f365072ad9fb24ac0b03636fa2c67",
+  "fsaverage_dir": "/home/user/mne_data/MNE-fsaverage-data/fsaverage",
+  "mne_version": "1.12.0",
+  "atlas_parc": "PALS_B12_Brodmann",
+  "sigma_mm": 5.0,
+  "radius_mm": 10.0,
+  "fiducial_residual_rmse_mm": 4.942397095381601,
+  "trans_head_to_mri_mm": [
+    [
+      0.99999385613078,
+      0.0027659234257809313,
+      0.0021534549671655577,
+      1.6406390614743906
+    ],
+    [
+      -0.0028363502889038835,
+      0.9994374171529722,
+      0.03341862222824876,
+      -5.9324383107375365
+    ],
+    [
+      -0.0020598101202607467,
+      -0.033424524861222535,
+      0.9994391218678954,
+      15.226918264305333
+    ],
+    [
+      0.0,
+      0.0,
+      0.0,
+      1.0
+    ]
+  ],
+  "n_optodes": 16,
+  "n_channels": 23
+}

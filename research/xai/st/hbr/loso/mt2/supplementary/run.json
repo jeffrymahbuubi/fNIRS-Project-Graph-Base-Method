@@ -1,0 +1,614 @@
+{
+  "schema_version": 1,
+  "timestamp_utc": "2026-05-10T15:24:00.444130+00:00",
+  "git": {
+    "sha": "62784233b65d8e019352ae8f894fcd3cdf409ca2",
+    "dirty": true,
+    "error": null
+  },
+  "versions": {
+    "python": "3.12.12",
+    "torch": "2.6.0+cu124",
+    "torch_geometric": "2.7.0",
+    "numpy": "2.4.3",
+    "pandas": "3.0.2",
+    "scipy": "1.17.1",
+    "matplotlib": "3.10.8"
+  },
+  "config": {
+    "arch": "st",
+    "hb": "hbr",
+    "regime": "loso",
+    "mt": 2,
+    "experiment_root": "/home/user/jeffrymahbuubi/PROJECTS/2-fNIRS-Graph-Base-Method/research/experiments/20260509",
+    "output_dir": "/home/user/jeffrymahbuubi/PROJECTS/2-fNIRS-Graph-Base-Method/research/xai/st/hbr/loso/mt2/supplementary",
+    "seed": 42,
+    "device": "cuda:0",
+    "include_misclassified": false,
+    "project_root": null,
+    "gnn_explainer_epochs": 200,
+    "gnn_explainer_lr": 0.01,
+    "estimator": "gnn",
+    "run_attention_cross_check": true,
+    "head_reduce": "mean",
+    "layer_reduce": "mean",
+    "run_supplementary_gnnexplainer": true,
+    "data_dir_override": null,
+    "splits_json_override": null,
+    "experiment_subdir": null,
+    "extra": {}
+  },
+  "result": {
+    "arch": "st",
+    "hb": "hbr",
+    "regime": "loso",
+    "mt": 2,
+    "n_trials": 102,
+    "n_trials_total": 124,
+    "n_subjects": 55,
+    "included_pct": 82.25806451612904,
+    "per_subject_trial_counts": {
+      "AA011": 2,
+      "AA013": 2,
+      "AA041": 2,
+      "AA056": 2,
+      "AA064": 2,
+      "AA089": 2,
+      "AA090": 2,
+      "AA092": 2,
+      "AA093": 2,
+      "AA094": 2,
+      "AA097": 2,
+      "AA098": 2,
+      "AA099": 2,
+      "AH014": 2,
+      "AH015": 2,
+      "AH017": 2,
+      "AH018": 2,
+      "AH019": 1,
+      "AH020": 1,
+      "AH021": 1,
+      "AH022": 2,
+      "AH023": 1,
+      "AH024": 2,
+      "AH025": 2,
+      "AH026": 1,
+      "AH029": 2,
+      "AH030": 2,
+      "AH033": 1,
+      "AH035": 2,
+      "AH036": 2,
+      "AH037": 1,
+      "AH038": 2,
+      "AH039": 2,
+      "AH043": 2,
+      "AH044": 2,
+      "AH046": 1,
+      "AH047": 2,
+      "AH048": 2,
+      "AH049": 2,
+      "EA055": 2,
+      "EA060": 2,
+      "EA061": 2,
+      "EA062": 2,
+      "LA042": 2,
+      "LA051": 2,
+      "LA052": 2,
+      "LA053": 2,
+      "LA054": 2,
+      "LA057": 2,
+      "LA058": 2,
+      "LA059": 2,
+      "LA063": 2,
+      "LA091": 2,
+      "LA095": 2,
+      "LA096": 2
+    }
+  },
+  "extras": {
+    "estimator": "gnn_object_supplementary",
+    "gnn_explainer_epochs": 200,
+    "gnn_explainer_lr": 0.01,
+    "n_checkpoints": 62,
+    "checkpoints": [
+      "subj-AA011",
+      "subj-AA013",
+      "subj-AA041",
+      "subj-AA056",
+      "subj-AA064",
+      "subj-AA089",
+      "subj-AA090",
+      "subj-AA092",
+      "subj-AA093",
+      "subj-AA094",
+      "subj-AA097",
+      "subj-AA098",
+      "subj-AA099",
+      "subj-AH014",
+      "subj-AH015",
+      "subj-AH017",
+      "subj-AH018",
+      "subj-AH019",
+      "subj-AH020",
+      "subj-AH021",
+      "subj-AH022",
+      "subj-AH023",
+      "subj-AH024",
+      "subj-AH025",
+      "subj-AH026",
+      "subj-AH027",
+      "subj-AH028",
+      "subj-AH029",
+      "subj-AH030",
+      "subj-AH031",
+      "subj-AH033",
+      "subj-AH034",
+      "subj-AH035",
+      "subj-AH036",
+      "subj-AH037",
+      "subj-AH038",
+      "subj-AH039",
+      "subj-AH040",
+      "subj-AH043",
+      "subj-AH044",
+      "subj-AH045",
+      "subj-AH046",
+      "subj-AH047",
+      "subj-AH048",
+      "subj-AH049",
+      "subj-AH050",
+      "subj-EA055",
+      "subj-EA060",
+      "subj-EA061",
+      "subj-EA062",
+      "subj-LA042",
+      "subj-LA051",
+      "subj-LA052",
+      "subj-LA053",
+      "subj-LA054",
+      "subj-LA057",
+      "subj-LA058",
+      "subj-LA059",
+      "subj-LA063",
+      "subj-LA091",
+      "subj-LA095",
+      "subj-LA096"
+    ],
+    "path_rebases": [
+      {
+        "raw": "/root/remote-training-setup/data/processed-new-mc",
+        "resolved": "/home/user/jeffrymahbuubi/PROJECTS/2-fNIRS-Graph-Base-Method/data/processed-new-mc",
+        "reason": "cloud_prefix:/root/remote-training-setup/",
+        "field": "data_dir",
+        "checkpoint": "subj-AA011"
+      },
+      {
+        "raw": "/root/remote-training-setup/data/processed-new-mc",
+        "resolved": "/home/user/jeffrymahbuubi/PROJECTS/2-fNIRS-Graph-Base-Method/data/processed-new-mc",
+        "reason": "cloud_prefix:/root/remote-training-setup/",
+        "field": "data_dir",
+        "checkpoint": "subj-AA013"
+      },
+      {
+        "raw": "/root/remote-training-setup/data/processed-new-mc",
+        "resolved": "/home/user/jeffrymahbuubi/PROJECTS/2-fNIRS-Graph-Base-Method/data/processed-new-mc",
+        "reason": "cloud_prefix:/root/remote-training-setup/",
+        "field": "data_dir",
+        "checkpoint": "subj-AA041"
+      },
+      {
+        "raw": "/root/remote-training-setup/data/processed-new-mc",
+        "resolved": "/home/user/jeffrymahbuubi/PROJECTS/2-fNIRS-Graph-Base-Method/data/processed-new-mc",
+        "reason": "cloud_prefix:/root/remote-training-setup/",
+        "field": "data_dir",
+        "checkpoint": "subj-AA056"
+      },
+      {
+        "raw": "/root/remote-training-setup/data/processed-new-mc",
+        "resolved": "/home/user/jeffrymahbuubi/PROJECTS/2-fNIRS-Graph-Base-Method/data/processed-new-mc",
+        "reason": "cloud_prefix:/root/remote-training-setup/",
+        "field": "data_dir",
+        "checkpoint": "subj-AA064"
+      },
+      {
+        "raw": "/root/remote-training-setup/data/processed-new-mc",
+        "resolved": "/home/user/jeffrymahbuubi/PROJECTS/2-fNIRS-Graph-Base-Method/data/processed-new-mc",
+        "reason": "cloud_prefix:/root/remote-training-setup/",
+        "field": "data_dir",
+        "checkpoint": "subj-AA089"
+      },
+      {
+        "raw": "/root/remote-training-setup/data/processed-new-mc",
+        "resolved": "/home/user/jeffrymahbuubi/PROJECTS/2-fNIRS-Graph-Base-Method/data/processed-new-mc",
+        "reason": "cloud_prefix:/root/remote-training-setup/",
+        "field": "data_dir",
+        "checkpoint": "subj-AA090"
+      },
+      {
+        "raw": "/root/remote-training-setup/data/processed-new-mc",
+        "resolved": "/home/user/jeffrymahbuubi/PROJECTS/2-fNIRS-Graph-Base-Method/data/processed-new-mc",
+        "reason": "cloud_prefix:/root/remote-training-setup/",
+        "field": "data_dir",
+        "checkpoint": "subj-AA092"
+      },
+      {
+        "raw": "/root/remote-training-setup/data/processed-new-mc",
+        "resolved": "/home/user/jeffrymahbuubi/PROJECTS/2-fNIRS-Graph-Base-Method/data/processed-new-mc",
+        "reason": "cloud_prefix:/root/remote-training-setup/",
+        "field": "data_dir",
+        "checkpoint": "subj-AA093"
+      },
+      {
+        "raw": "/root/remote-training-setup/data/processed-new-mc",
+        "resolved": "/home/user/jeffrymahbuubi/PROJECTS/2-fNIRS-Graph-Base-Method/data/processed-new-mc",
+        "reason": "cloud_prefix:/root/remote-training-setup/",
+        "field": "data_dir",
+        "checkpoint": "subj-AA094"
+      },
+      {
+        "raw": "/root/remote-training-setup/data/processed-new-mc",
+        "resolved": "/home/user/jeffrymahbuubi/PROJECTS/2-fNIRS-Graph-Base-Method/data/processed-new-mc",
+        "reason": "cloud_prefix:/root/remote-training-setup/",
+        "field": "data_dir",
+        "checkpoint": "subj-AA097"
+      },
+      {
+        "raw": "/root/remote-training-setup/data/processed-new-mc",
+        "resolved": "/home/user/jeffrymahbuubi/PROJECTS/2-fNIRS-Graph-Base-Method/data/processed-new-mc",
+        "reason": "cloud_prefix:/root/remote-training-setup/",
+        "field": "data_dir",
+        "checkpoint": "subj-AA098"
+      },
+      {
+        "raw": "/root/remote-training-setup/data/processed-new-mc",
+        "resolved": "/home/user/jeffrymahbuubi/PROJECTS/2-fNIRS-Graph-Base-Method/data/processed-new-mc",
+        "reason": "cloud_prefix:/root/remote-training-setup/",
+        "field": "data_dir",
+        "checkpoint": "subj-AA099"
+      },
+      {
+        "raw": "/root/remote-training-setup/data/processed-new-mc",
+        "resolved": "/home/user/jeffrymahbuubi/PROJECTS/2-fNIRS-Graph-Base-Method/data/processed-new-mc",
+        "reason": "cloud_prefix:/root/remote-training-setup/",
+        "field": "data_dir",
+        "checkpoint": "subj-AH014"
+      },
+      {
+        "raw": "/root/remote-training-setup/data/processed-new-mc",
+        "resolved": "/home/user/jeffrymahbuubi/PROJECTS/2-fNIRS-Graph-Base-Method/data/processed-new-mc",
+        "reason": "cloud_prefix:/root/remote-training-setup/",
+        "field": "data_dir",
+        "checkpoint": "subj-AH015"
+      },
+      {
+        "raw": "/root/remote-training-setup/data/processed-new-mc",
+        "resolved": "/home/user/jeffrymahbuubi/PROJECTS/2-fNIRS-Graph-Base-Method/data/processed-new-mc",
+        "reason": "cloud_prefix:/root/remote-training-setup/",
+        "field": "data_dir",
+        "checkpoint": "subj-AH017"
+      },
+      {
+        "raw": "/root/remote-training-setup/data/processed-new-mc",
+        "resolved": "/home/user/jeffrymahbuubi/PROJECTS/2-fNIRS-Graph-Base-Method/data/processed-new-mc",
+        "reason": "cloud_prefix:/root/remote-training-setup/",
+        "field": "data_dir",
+        "checkpoint": "subj-AH018"
+      },
+      {
+        "raw": "/root/remote-training-setup/data/processed-new-mc",
+        "resolved": "/home/user/jeffrymahbuubi/PROJECTS/2-fNIRS-Graph-Base-Method/data/processed-new-mc",
+        "reason": "cloud_prefix:/root/remote-training-setup/",
+        "field": "data_dir",
+        "checkpoint": "subj-AH019"
+      },
+      {
+        "raw": "/root/remote-training-setup/data/processed-new-mc",
+        "resolved": "/home/user/jeffrymahbuubi/PROJECTS/2-fNIRS-Graph-Base-Method/data/processed-new-mc",
+        "reason": "cloud_prefix:/root/remote-training-setup/",
+        "field": "data_dir",
+        "checkpoint": "subj-AH020"
+      },
+      {
+        "raw": "/root/remote-training-setup/data/processed-new-mc",
+        "resolved": "/home/user/jeffrymahbuubi/PROJECTS/2-fNIRS-Graph-Base-Method/data/processed-new-mc",
+        "reason": "cloud_prefix:/root/remote-training-setup/",
+        "field": "data_dir",
+        "checkpoint": "subj-AH021"
+      },
+      {
+        "raw": "/root/remote-training-setup/data/processed-new-mc",
+        "resolved": "/home/user/jeffrymahbuubi/PROJECTS/2-fNIRS-Graph-Base-Method/data/processed-new-mc",
+        "reason": "cloud_prefix:/root/remote-training-setup/",
+        "field": "data_dir",
+        "checkpoint": "subj-AH022"
+      },
+      {
+        "raw": "/root/remote-training-setup/data/processed-new-mc",
+        "resolved": "/home/user/jeffrymahbuubi/PROJECTS/2-fNIRS-Graph-Base-Method/data/processed-new-mc",
+        "reason": "cloud_prefix:/root/remote-training-setup/",
+        "field": "data_dir",
+        "checkpoint": "subj-AH023"
+      },
+      {
+        "raw": "/root/remote-training-setup/data/processed-new-mc",
+        "resolved": "/home/user/jeffrymahbuubi/PROJECTS/2-fNIRS-Graph-Base-Method/data/processed-new-mc",
+        "reason": "cloud_prefix:/root/remote-training-setup/",
+        "field": "data_dir",
+        "checkpoint": "subj-AH024"
+      },
+      {
+        "raw": "/root/remote-training-setup/data/processed-new-mc",
+        "resolved": "/home/user/jeffrymahbuubi/PROJECTS/2-fNIRS-Graph-Base-Method/data/processed-new-mc",
+        "reason": "cloud_prefix:/root/remote-training-setup/",
+        "field": "data_dir",
+        "checkpoint": "subj-AH025"
+      },
+      {
+        "raw": "/root/remote-training-setup/data/processed-new-mc",
+        "resolved": "/home/user/jeffrymahbuubi/PROJECTS/2-fNIRS-Graph-Base-Method/data/processed-new-mc",
+        "reason": "cloud_prefix:/root/remote-training-setup/",
+        "field": "data_dir",
+        "checkpoint": "subj-AH026"
+      },
+      {
+        "raw": "/root/remote-training-setup/data/processed-new-mc",
+        "resolved": "/home/user/jeffrymahbuubi/PROJECTS/2-fNIRS-Graph-Base-Method/data/processed-new-mc",
+        "reason": "cloud_prefix:/root/remote-training-setup/",
+        "field": "data_dir",
+        "checkpoint": "subj-AH027"
+      },
+      {
+        "raw": "/root/remote-training-setup/data/processed-new-mc",
+        "resolved": "/home/user/jeffrymahbuubi/PROJECTS/2-fNIRS-Graph-Base-Method/data/processed-new-mc",
+        "reason": "cloud_prefix:/root/remote-training-setup/",
+        "field": "data_dir",
+        "checkpoint": "subj-AH028"
+      },
+      {
+        "raw": "/root/remote-training-setup/data/processed-new-mc",
+        "resolved": "/home/user/jeffrymahbuubi/PROJECTS/2-fNIRS-Graph-Base-Method/data/processed-new-mc",
+        "reason": "cloud_prefix:/root/remote-training-setup/",
+        "field": "data_dir",
+        "checkpoint": "subj-AH029"
+      },
+      {
+        "raw": "/root/remote-training-setup/data/processed-new-mc",
+        "resolved": "/home/user/jeffrymahbuubi/PROJECTS/2-fNIRS-Graph-Base-Method/data/processed-new-mc",
+        "reason": "cloud_prefix:/root/remote-training-setup/",
+        "field": "data_dir",
+        "checkpoint": "subj-AH030"
+      },
+      {
+        "raw": "/root/remote-training-setup/data/processed-new-mc",
+        "resolved": "/home/user/jeffrymahbuubi/PROJECTS/2-fNIRS-Graph-Base-Method/data/processed-new-mc",
+        "reason": "cloud_prefix:/root/remote-training-setup/",
+        "field": "data_dir",
+        "checkpoint": "subj-AH031"
+      },
+      {
+        "raw": "/root/remote-training-setup/data/processed-new-mc",
+        "resolved": "/home/user/jeffrymahbuubi/PROJECTS/2-fNIRS-Graph-Base-Method/data/processed-new-mc",
+        "reason": "cloud_prefix:/root/remote-training-setup/",
+        "field": "data_dir",
+        "checkpoint": "subj-AH033"
+      },
+      {
+        "raw": "/root/remote-training-setup/data/processed-new-mc",
+        "resolved": "/home/user/jeffrymahbuubi/PROJECTS/2-fNIRS-Graph-Base-Method/data/processed-new-mc",
+        "reason": "cloud_prefix:/root/remote-training-setup/",
+        "field": "data_dir",
+        "checkpoint": "subj-AH034"
+      },
+      {
+        "raw": "/root/remote-training-setup/data/processed-new-mc",
+        "resolved": "/home/user/jeffrymahbuubi/PROJECTS/2-fNIRS-Graph-Base-Method/data/processed-new-mc",
+        "reason": "cloud_prefix:/root/remote-training-setup/",
+        "field": "data_dir",
+        "checkpoint": "subj-AH035"
+      },
+      {
+        "raw": "/root/remote-training-setup/data/processed-new-mc",
+        "resolved": "/home/user/jeffrymahbuubi/PROJECTS/2-fNIRS-Graph-Base-Method/data/processed-new-mc",
+        "reason": "cloud_prefix:/root/remote-training-setup/",
+        "field": "data_dir",
+        "checkpoint": "subj-AH036"
+      },
+      {
+        "raw": "/root/remote-training-setup/data/processed-new-mc",
+        "resolved": "/home/user/jeffrymahbuubi/PROJECTS/2-fNIRS-Graph-Base-Method/data/processed-new-mc",
+        "reason": "cloud_prefix:/root/remote-training-setup/",
+        "field": "data_dir",
+        "checkpoint": "subj-AH037"
+      },
+      {
+        "raw": "/root/remote-training-setup/data/processed-new-mc",
+        "resolved": "/home/user/jeffrymahbuubi/PROJECTS/2-fNIRS-Graph-Base-Method/data/processed-new-mc",
+        "reason": "cloud_prefix:/root/remote-training-setup/",
+        "field": "data_dir",
+        "checkpoint": "subj-AH038"
+      },
+      {
+        "raw": "/root/remote-training-setup/data/processed-new-mc",
+        "resolved": "/home/user/jeffrymahbuubi/PROJECTS/2-fNIRS-Graph-Base-Method/data/processed-new-mc",
+        "reason": "cloud_prefix:/root/remote-training-setup/",
+        "field": "data_dir",
+        "checkpoint": "subj-AH039"
+      },
+      {
+        "raw": "/root/remote-training-setup/data/processed-new-mc",
+        "resolved": "/home/user/jeffrymahbuubi/PROJECTS/2-fNIRS-Graph-Base-Method/data/processed-new-mc",
+        "reason": "cloud_prefix:/root/remote-training-setup/",
+        "field": "data_dir",
+        "checkpoint": "subj-AH040"
+      },
+      {
+        "raw": "/root/remote-training-setup/data/processed-new-mc",
+        "resolved": "/home/user/jeffrymahbuubi/PROJECTS/2-fNIRS-Graph-Base-Method/data/processed-new-mc",
+        "reason": "cloud_prefix:/root/remote-training-setup/",
+        "field": "data_dir",
+        "checkpoint": "subj-AH043"
+      },
+      {
+        "raw": "/root/remote-training-setup/data/processed-new-mc",
+        "resolved": "/home/user/jeffrymahbuubi/PROJECTS/2-fNIRS-Graph-Base-Method/data/processed-new-mc",
+        "reason": "cloud_prefix:/root/remote-training-setup/",
+        "field": "data_dir",
+        "checkpoint": "subj-AH044"
+      },
+      {
+        "raw": "/root/remote-training-setup/data/processed-new-mc",
+        "resolved": "/home/user/jeffrymahbuubi/PROJECTS/2-fNIRS-Graph-Base-Method/data/processed-new-mc",
+        "reason": "cloud_prefix:/root/remote-training-setup/",
+        "field": "data_dir",
+        "checkpoint": "subj-AH045"
+      },
+      {
+        "raw": "/root/remote-training-setup/data/processed-new-mc",
+        "resolved": "/home/user/jeffrymahbuubi/PROJECTS/2-fNIRS-Graph-Base-Method/data/processed-new-mc",
+        "reason": "cloud_prefix:/root/remote-training-setup/",
+        "field": "data_dir",
+        "checkpoint": "subj-AH046"
+      },
+      {
+        "raw": "/root/remote-training-setup/data/processed-new-mc",
+        "resolved": "/home/user/jeffrymahbuubi/PROJECTS/2-fNIRS-Graph-Base-Method/data/processed-new-mc",
+        "reason": "cloud_prefix:/root/remote-training-setup/",
+        "field": "data_dir",
+        "checkpoint": "subj-AH047"
+      },
+      {
+        "raw": "/root/remote-training-setup/data/processed-new-mc",
+        "resolved": "/home/user/jeffrymahbuubi/PROJECTS/2-fNIRS-Graph-Base-Method/data/processed-new-mc",
+        "reason": "cloud_prefix:/root/remote-training-setup/",
+        "field": "data_dir",
+        "checkpoint": "subj-AH048"
+      },
+      {
+        "raw": "/root/remote-training-setup/data/processed-new-mc",
+        "resolved": "/home/user/jeffrymahbuubi/PROJECTS/2-fNIRS-Graph-Base-Method/data/processed-new-mc",
+        "reason": "cloud_prefix:/root/remote-training-setup/",
+        "field": "data_dir",
+        "checkpoint": "subj-AH049"
+      },
+      {
+        "raw": "/root/remote-training-setup/data/processed-new-mc",
+        "resolved": "/home/user/jeffrymahbuubi/PROJECTS/2-fNIRS-Graph-Base-Method/data/processed-new-mc",
+        "reason": "cloud_prefix:/root/remote-training-setup/",
+        "field": "data_dir",
+        "checkpoint": "subj-AH050"
+      },
+      {
+        "raw": "/root/remote-training-setup/data/processed-new-mc",
+        "resolved": "/home/user/jeffrymahbuubi/PROJECTS/2-fNIRS-Graph-Base-Method/data/processed-new-mc",
+        "reason": "cloud_prefix:/root/remote-training-setup/",
+        "field": "data_dir",
+        "checkpoint": "subj-EA055"
+      },
+      {
+        "raw": "/root/remote-training-setup/data/processed-new-mc",
+        "resolved": "/home/user/jeffrymahbuubi/PROJECTS/2-fNIRS-Graph-Base-Method/data/processed-new-mc",
+        "reason": "cloud_prefix:/root/remote-training-setup/",
+        "field": "data_dir",
+        "checkpoint": "subj-EA060"
+      },
+      {
+        "raw": "/root/remote-training-setup/data/processed-new-mc",
+        "resolved": "/home/user/jeffrymahbuubi/PROJECTS/2-fNIRS-Graph-Base-Method/data/processed-new-mc",
+        "reason": "cloud_prefix:/root/remote-training-setup/",
+        "field": "data_dir",
+        "checkpoint": "subj-EA061"
+      },
+      {
+        "raw": "/root/remote-training-setup/data/processed-new-mc",
+        "resolved": "/home/user/jeffrymahbuubi/PROJECTS/2-fNIRS-Graph-Base-Method/data/processed-new-mc",
+        "reason": "cloud_prefix:/root/remote-training-setup/",
+        "field": "data_dir",
+        "checkpoint": "subj-EA062"
+      },
+      {
+        "raw": "/root/remote-training-setup/data/processed-new-mc",
+        "resolved": "/home/user/jeffrymahbuubi/PROJECTS/2-fNIRS-Graph-Base-Method/data/processed-new-mc",
+        "reason": "cloud_prefix:/root/remote-training-setup/",
+        "field": "data_dir",
+        "checkpoint": "subj-LA042"
+      },
+      {
+        "raw": "/root/remote-training-setup/data/processed-new-mc",
+        "resolved": "/home/user/jeffrymahbuubi/PROJECTS/2-fNIRS-Graph-Base-Method/data/processed-new-mc",
+        "reason": "cloud_prefix:/root/remote-training-setup/",
+        "field": "data_dir",
+        "checkpoint": "subj-LA051"
+      },
+      {
+        "raw": "/root/remote-training-setup/data/processed-new-mc",
+        "resolved": "/home/user/jeffrymahbuubi/PROJECTS/2-fNIRS-Graph-Base-Method/data/processed-new-mc",
+        "reason": "cloud_prefix:/root/remote-training-setup/",
+        "field": "data_dir",
+        "checkpoint": "subj-LA052"
+      },
+      {
+        "raw": "/root/remote-training-setup/data/processed-new-mc",
+        "resolved": "/home/user/jeffrymahbuubi/PROJECTS/2-fNIRS-Graph-Base-Method/data/processed-new-mc",
+        "reason": "cloud_prefix:/root/remote-training-setup/",
+        "field": "data_dir",
+        "checkpoint": "subj-LA053"
+      },
+      {
+        "raw": "/root/remote-training-setup/data/processed-new-mc",
+        "resolved": "/home/user/jeffrymahbuubi/PROJECTS/2-fNIRS-Graph-Base-Method/data/processed-new-mc",
+        "reason": "cloud_prefix:/root/remote-training-setup/",
+        "field": "data_dir",
+        "checkpoint": "subj-LA054"
+      },
+      {
+        "raw": "/root/remote-training-setup/data/processed-new-mc",
+        "resolved": "/home/user/jeffrymahbuubi/PROJECTS/2-fNIRS-Graph-Base-Method/data/processed-new-mc",
+        "reason": "cloud_prefix:/root/remote-training-setup/",
+        "field": "data_dir",
+        "checkpoint": "subj-LA057"
+      },
+      {
+        "raw": "/root/remote-training-setup/data/processed-new-mc",
+        "resolved": "/home/user/jeffrymahbuubi/PROJECTS/2-fNIRS-Graph-Base-Method/data/processed-new-mc",
+        "reason": "cloud_prefix:/root/remote-training-setup/",
+        "field": "data_dir",
+        "checkpoint": "subj-LA058"
+      },
+      {
+        "raw": "/root/remote-training-setup/data/processed-new-mc",
+        "resolved": "/home/user/jeffrymahbuubi/PROJECTS/2-fNIRS-Graph-Base-Method/data/processed-new-mc",
+        "reason": "cloud_prefix:/root/remote-training-setup/",
+        "field": "data_dir",
+        "checkpoint": "subj-LA059"
+      },
+      {
+        "raw": "/root/remote-training-setup/data/processed-new-mc",
+        "resolved": "/home/user/jeffrymahbuubi/PROJECTS/2-fNIRS-Graph-Base-Method/data/processed-new-mc",
+        "reason": "cloud_prefix:/root/remote-training-setup/",
+        "field": "data_dir",
+        "checkpoint": "subj-LA063"
+      },
+      {
+        "raw": "/root/remote-training-setup/data/processed-new-mc",
+        "resolved": "/home/user/jeffrymahbuubi/PROJECTS/2-fNIRS-Graph-Base-Method/data/processed-new-mc",
+        "reason": "cloud_prefix:/root/remote-training-setup/",
+        "field": "data_dir",
+        "checkpoint": "subj-LA091"
+      },
+      {
+        "raw": "/root/remote-training-setup/data/processed-new-mc",
+        "resolved": "/home/user/jeffrymahbuubi/PROJECTS/2-fNIRS-Graph-Base-Method/data/processed-new-mc",
+        "reason": "cloud_prefix:/root/remote-training-setup/",
+        "field": "data_dir",
+        "checkpoint": "subj-LA095"
+      },
+      {
+        "raw": "/root/remote-training-setup/data/processed-new-mc",
+        "resolved": "/home/user/jeffrymahbuubi/PROJECTS/2-fNIRS-Graph-Base-Method/data/processed-new-mc",
+        "reason": "cloud_prefix:/root/remote-training-setup/",
+        "field": "data_dir",
+        "checkpoint": "subj-LA096"
+      }
+    ]
+  }
+}

@@ -1,0 +1,9 @@
+ba_label,hemi,mean,n_channels_contrib,p_mass_total
+Brodmann.8,R,4.01254076,4,4.00000000
+Brodmann.8,L,3.99740846,4,4.00000000
+Brodmann.9,R,3.99366504,4,4.00000000
+Brodmann.9,L,3.01610011,3,3.00000000
+Brodmann.10,R,2.98232686,3,3.00000000
+Brodmann.46,R,2.00934118,2,2.00000000
+Brodmann.10,L,2.00020886,2,2.00000000
+Brodmann.46,L,0.98840910,1,1.00000000
