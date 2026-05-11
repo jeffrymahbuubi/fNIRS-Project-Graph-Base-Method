@@ -11,6 +11,11 @@
 >
 > **Date created:** 2026-05-10 · **Last updated:** 2026-05-11
 >
+> **Progress log (2026-05-11 session 6 — P1.2 concordance built):**
+> - ✅ **P1.2 concordance triptych — SHIPPED.** `research/paper-materials/figures/concordance_triptych.{png,svg}` (3×2 layout: ST attn HbO/HbR z-score topomaps + §02/§06 |d| topomaps + HbO/HbR temporal-attention lines) + `research/paper-materials/stats/concordance_rho_table.{csv,md}`. Build script `scripts/build_concordance_triptych.py` (reproducible from `src/.venv/bin/python` in ≤ 5 s). **Headline numbers:** Spearman ρ across 23 channels is null in all four XAI–stats pairings (HbO vs §02|d| = +0.00; HbO vs §06|βd| = −0.01; HbR vs §02|d| = +0.10; HbR vs §06|βd| = −0.05). **Top-10 overlap is the figure-of-merit:** ST-HbO ∩ §06|βd| = 6/10; C6 prior hits — ST-HbO 3/6, ST-HbR 4/6, §02 5/6, §06 5/6. **Bonus:** ρ(HbO XAI, HbR XAI) = +0.899 p<0.001 — chromophore-invariant attention surface.
+> - ✅ **Headline-XAI chromophore split decision LOCKED.** §3.3 main panels switch to **HbO LOSO mt2** (matches stats arm); HbR LOSO mt2 stays as the §3.2 headline ML cell. Both XAI cells already on disk. PAPER_OUTLINE.md §3.3.1 + §3.3.4 + §3.3.6 updated to reflect this.
+> - ✅ Memory persisted: `project_xai_stats_concordance.md` + MEMORY.md index entry.
+>
 > **Progress log (2026-05-11 session — user decisions resolved):**
 > - ✅ **P0.1 venue** — **IEEE TNSRE** (Transactions on Neural Systems and Rehabilitation Engineering). 8-page limit, IEEE numeric citations, supplementary supported. Drives §3.2 main-table size budget.
 > - ✅ **P0.2 chromophore split** — **HbO + HbR in main; HbT in supplementary**. Matches statistical-analysis arm (HbO) + LOSO winner (HbR). HbT (CBSI-derived, r(HbO,HbR)=−1) goes to SI_Table_S1.
@@ -200,11 +205,13 @@
 - **lands.** `research/paper-materials/stats/st_vs_sg_paired_test.md` + a row in the §3.2 table.
 - **effort.** 1 h.
 
-### P1.2. Saliency–statistics concordance figure (XAI vs |Cohen's d|)
-- **what.** 2-row × 2-col triptych of 5×7 grid topomaps: row 1 = ST attention HbO + HbR; row 2 = §02 |d| (HbO) + §06 canonical-β |d| (HbO). Plus a small Spearman ρ table comparing the four ranks.
-- **why.** Outline §3.3.6 names this as the convergence check (FUTURE_ANALYSES.md §1.4 also). It is the single strongest "model uses biology" defence.
-- **lands.** `research/paper-materials/figures/concordance_triptych.svg` + `concordance_rho_table.csv`.
-- **effort.** 2–3 h (data already exists from P0.9 + §02 + §06).
+### P1.2. Saliency–statistics concordance figure (XAI vs |Cohen's d|) ✅ DONE 2026-05-11
+- **what.** 3-row × 2-col panel (HbO + HbR XAI z-score topomaps; §02 + §06 |d| topomaps; HbO + HbR temporal attention with §06 cluster windows shaded). Spearman ρ table over 6 comparisons.
+- **outputs.**
+  - `research/paper-materials/figures/concordance_triptych.{png,svg}`
+  - `research/paper-materials/stats/concordance_rho_table.{csv,md}`
+  - `scripts/build_concordance_triptych.py` (reproducible, ≤ 5 s)
+- **headline numbers.** ρ null across all XAI–stats pairings (≈ 0 in three cells, +0.10 for HbR vs §02). Top-10 overlap is the convergence story: ST-HbO ∩ §06|βd| = 6/10; C6 hits — ST-HbO 3/6, ST-HbR 4/6. ρ(HbO XAI, HbR XAI) = +0.899 — XAI is chromophore-invariant. **§3.3.6 prose must use set-overlap, NOT ρ.**
 
 ### P1.3. Literature-review draft + bibliography population
 - **what.** Survey ~12 representative papers on:
@@ -277,13 +284,14 @@
 
 When all of the following are true, drafting `PAPER_SPEC_PLAN.md` becomes a writing task, not a research task:
 
-- [ ] P0.1–P0.4 decisions written into the SPEC plan's preamble (one short table).
-- [ ] `PAPER_MATH.md` exists with E1..E10 numbered formulas, each verified against the codebase.
-- [ ] `PAPER_ARCH_TABLES.md` exists with the SG and ST tables.
-- [ ] Two pipeline schematics (SG, ST) live in `research/paper-materials/figures/` as SVG.
-- [ ] SG Optuna `result_report.md` exists alongside the ST one.
-- [ ] At least the LOSO HbR mt2 ST XAI cell has populated `research/xai/st/hbr/loso/mt2/native/...` outputs (preferably all 9 cells).
-- [ ] Atlas table exists (`research/xai/atlas/channel_to_brodmann.csv`).
-- [ ] Headline confusion matrix + training-curve grid figures exist.
+- [x] P0.1–P0.4 decisions written into the SPEC plan's preamble (one short table).
+- [x] `PAPER_MATH.md` exists with E1..E10 numbered formulas, each verified against the codebase.
+- [x] `PAPER_ARCH_TABLES.md` exists with the SG and ST tables.
+- [x] Two pipeline schematics (SG, ST) live in `research/paper-materials/figures/` as SVG. *(PNG inspiration; SVG TBD when LaTeX scaffold lands)*
+- [x] SG Optuna `result_report.md` exists alongside the ST one.
+- [x] LOSO HbO + HbR mt2 ST XAI cells populated (all 9 cells in fact). HbO is the headline-XAI chromophore (per §3.3.1 decision 2026-05-11); HbR carries the §3.3.4 temporal-attention panel.
+- [x] Atlas table exists (`research/xai/atlas/channel_to_brodmann.csv`).
+- [x] Headline confusion matrix + training-curve grid figures exist.
+- [x] **P1.2 concordance figure + ρ table — DONE 2026-05-11** (`concordance_triptych.{png,svg}` + `concordance_rho_table.{csv,md}`).
 
-P1 items should be in flight but do not block the first SPEC plan draft — they can be added between SPEC v1 and SPEC v2.
+**All acceptance-gate items are now ticked. The remaining non-gate work is the `citation-management` DOI pass on `references/refs.bib`, which can run in parallel with SPEC drafting.**

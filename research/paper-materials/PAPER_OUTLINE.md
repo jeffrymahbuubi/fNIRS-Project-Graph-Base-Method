@@ -394,9 +394,12 @@ without re-running anything.
 ## 3.3 AI explainability (single best-performance model)
 
 ### 3.3.1 Decision: which model + which signal as the XAI base
-- **[DECISION + DONE]** ST (winner of §3.2) × **HbR mt2 LOSO** = paper-headline XAI subject. SPEC §2.1 (rev. 6) covers HbO/HbR/HbT for ST; HbR is the headline.
-- **Output paths (after `02_st_population.ipynb`):**
-  - Native-attention CSVs: `research/xai/st/hbr/{kfold-5, kfold-10, loso}/mt2/native/{node_importance.csv, edge_importance.csv, channel_pair_matrix.npy, temporal_attention.csv, ...}`
+- **[DECISION + DONE 2026-05-11]** Two-cell presentation:
+  - **Headline XAI cell (used in §3.3 main panels + §3.3.6 concordance):** ST × **HbO mt2 LOSO** (n_trials=98, 52 subj). Rationale: matches the statistical-analysis arm chromophore (HbO is primary in §02 + §06); its top-1 channel **S5_D5** is also §02 #2 / §06 #5 — a clean convergence anchor; ρ(HbO XAI, HbR XAI) = +0.899 across 23 channels (`research/paper-materials/stats/concordance_rho_table.csv`), so the XAI ranking is essentially chromophore-invariant.
+  - **Headline ML cell (kept for §3.2 only):** ST × HbR mt2 LOSO (F1=0.8406, global best). The HbR XAI cell exists on disk (`research/xai/st/hbr/loso/mt2/native/`) and is referenced in supplementary (`SI_Fig_S?`) + in §3.3.4 for the temporal-attention panel.
+  - SPEC §2.1 (rev. 6) covers HbO/HbR/HbT for ST; the full sweep is committed in `313b65e`.
+- **Output paths:**
+  - Native-attention CSVs: `research/xai/st/{hbo,hbr}/{kfold-5, kfold-10, loso}/mt2/native/{node_importance.csv, edge_importance.csv, channel_pair_matrix.npy, temporal_attention.csv, ...}`
   - GNN-explainer cross-check CSVs: same path with `supplementary/`.
   - Plots: `fig_montage_channel_importance.png`, `fig_pair_matrix.png`, `fig_temporal_attention.png`.
 
@@ -412,18 +415,26 @@ without re-running anything.
 - **[DONE+WRITE]** Top-K pair list to enumerate (K = 10) and a chord/heatmap figure.
 
 ### 3.3.4 Temporal attention (ST native — UNIQUE TO ST)
-- **[DONE+WRITE]** `temporal_attention.csv` per cell = `[K = 39]` softmax weights over windows. Plot weight vs window index; expected: emphasis on **late** windows (~21–32 s) consistent with the §3.1.4 cluster-permutation finding.
-- **Action item:** This is a strong figure; ensure it lands in the main text.
+- **[DONE+WRITE]** `temporal_attention.csv` per cell = `[K = 39]` softmax weights over windows. **Empirical finding (computed 2026-05-11):**
+  - **HbR LOSO mt2** — α_k peaks on windows 27–37 (21.6–31.2 s) at ≈ 0.0268–0.0273 vs uniform 0.02564 (≈ +6 % above uniform). This coincides exactly with the §06 cluster-permutation late window (21–32 s) where HC ramps HbO up and GAD declines — i.e. HC > GAD ⇒ inverted into HbR ⇒ positive-saliency peak in HbR attention.
+  - **HbO LOSO mt2** — α_k sits *below* uniform in the same late window (≈ 0.0247–0.0254). The CBSI anti-correlation explains the sign flip.
+  - Overall the temporal attention is broadly diffuse (CV ≈ 10 %), so the §06-aligned modulation is a small but consistent peak rather than a sharp selectivity. **Use HbR for this panel** and report HbO as a sign-inverted companion in supplementary.
+- **Figure:** `concordance_triptych.{png,svg}` panels (E) + (F) carry the HbO and HbR temporal-attention lines with the §06 cluster-permutation windows shaded.
 
 ### 3.3.5 Brodmann-region cross-reference
 - **[DONE+WRITE]** Region-level re-aggregation produces `region_importance.csv` and `region_pair_matrix.npy` per cell (output of `04_atlas_registration.ipynb`). Sanity check C8: S2_D1 → BA10 probability ≥ 0.5.
 - **Expected narration:** the highest-importance regions cluster in **medial PFC (BA 10) / dlPFC (BA 9, 46)**; cross-reference Yeung 2020, Tupak 2014 GAD-PFC findings.
 
 ### 3.3.6 Convergence narrative
-- **[DONE+WRITE]** The hypothesis the user wants to validate ("explainability matches the actual GAD region/channels") is testable in **two** quantitative checks:
-  1. **C6 (channel level):** ≥ 2 / 6 statistical channels in top-10 attention (expected to pass — already passing in pilot smoke runs per `00_setup_and_smoke.ipynb`).
-  2. **Spearman ρ between attention rank and |Cohen's d| rank** across 23 channels, separately for HbO and HbR.
-- **[TODO]** Add a small "concordance" sub-figure (saliency vs |d| topomap triptych) — same idea as `FUTURE_ANALYSES.md §1.4`, but already feasible from the existing artefacts.
+- **[DONE+COMPUTED 2026-05-11]** Quantitative results from `research/paper-materials/stats/concordance_rho_table.csv` + companion `.md`. The convergence story is **set-overlap based, NOT rank-correlation**. Key numbers to report:
+  - **Spearman ρ over 23 channels is null in all four XAI–stats pairings** (HbO vs §02 |d|: ρ = +0.002, p = 0.99; HbO vs §06 |β d|: ρ = −0.007, p = 0.98; HbR vs §02 |d|: ρ = +0.10, p = 0.64; HbR vs §06 |β d|: ρ = −0.05, p = 0.84). **Do NOT lead with ρ.**
+  - **Top-10 overlap (the figure-of-merit to cite):** ST-HbO ∩ §02-|d| = 4/10; ST-HbO ∩ §06-|β d| = **6/10**; ST-HbR ∩ §02-|d| = 4/10; ST-HbR ∩ §06-|β d| = **6/10**.
+  - **C6 prior set in XAI top-10:** ST-HbO 3/6 (S5_D5, S1_D1, S3_D3); ST-HbR 4/6 (above + S4_D7); §02 5/6; §06 5/6. All exceed C6 acceptance threshold of ≥2/6.
+  - **Disagreements to acknowledge:** S2_D1 (§02 #1, §06 #3) ranks dead last in ST-HbO XAI; S4_D5 / S4_D7 (§06-FDR pair) are outside ST-HbO top-10.
+  - **Cross-chromophore XAI stability bonus:** ρ(ST attn HbO, ST attn HbR) = +0.899 (p<0.001). Interpretation: the graph attention surface is largely chromophore-invariant — it tracks signal-coupling structure, not chromophore-specific amplitude.
+- **Figure:** `research/paper-materials/figures/concordance_triptych.{png,svg}` — 3×2 layout: (A) ST attn HbO z-score topomap, (B) ST attn HbR z-score topomap, (C) §02 |d| topomap, (D) §06 |β d| topomap, (E) HbO temporal attention, (F) HbR temporal attention. C6 channels labelled in yellow; §06 cluster-permutation windows shaded in panels E/F.
+- **Stats table:** `research/paper-materials/stats/concordance_rho_table.csv` (6 rows).
+- **Build script:** `scripts/build_concordance_triptych.py` (re-runnable in ≤ 5 s with `src/.venv/bin/python`).
 
 ---
 

@@ -1,0 +1,7 @@
+comparison,spearman_rho,p_value,n_channels
+ST attn HbO  vs §02 |d| (HbO STD),0.001976,0.992860,23
+ST attn HbO  vs §06 |β d| (HbO canon),-0.006917,0.975012,23
+ST attn HbR  vs §02 |d| (HbO STD),0.102767,0.640782,23
+ST attn HbR  vs §06 |β d| (HbO canon),-0.045455,0.836836,23
+ST attn HbO  vs ST attn HbR,0.899209,0.000000,23
+§02 |d|     vs §06 |β d|,0.201581,0.356344,23
