@@ -55,9 +55,11 @@ LABEL_FONT_SIZE = 11      # match channel-number font size (per user request)
 CARD_BG_COLOR = "#FAFBFC"   # off-white card background
 CARD_EDGE_COLOR = "#E5E9EE"
 
-# Hard-coded row assignment AFTER the y-flip applied in load_optode_xy:
-# anterior optodes (S1/S2/D1/D2) sit at the BOTTOM of the figure,
-# posterior optodes (S6..D8) at the TOP.
+# Hard-coded row assignment AFTER 180° rotation of the sensor_arr.png layout
+# (flip_y=True AND flip_x=True applied in load_optode_xy). Result:
+#   - anterior optodes (S1/S2/D1/D2) sit at the BOTTOM of the figure
+#   - posterior optodes (S6..D8) at the TOP
+#   - subject's LEFT appears on viewer's RIGHT
 # Labels are placed AWAY from the optode cluster (outside).
 ROW_OF_OPTODE: Dict[str, str] = {
     "S1": "bottom", "S2": "bottom", "D1": "bottom", "D2": "bottom",
@@ -88,28 +90,40 @@ def _set_style() -> None:
 # --------------------------------------------------------------------------- #
 
 def load_optode_xy(elc_path: Path,
-                   flip_y: bool = True) -> Dict[str, Tuple[float, float]]:
+                   flip_y: bool = True,
+                   flip_x: bool = True) -> Dict[str, Tuple[float, float]]:
     """Return ``{label: (x, y)}`` for S1-S8 and D1-D8 in mm.
 
     ELC stores positions in head-CTF mm: +x right, +y anterior, +z superior.
     We drop z and return (x, y).
 
-    If ``flip_y=True`` (default), invert the y axis so that the anterior pole
-    (forehead, S1/D1) ends up at the BOTTOM of the figure and the posterior
-    pole (back of head, S6/D8) ends up at the TOP. This matches the brain
-    figure's frontal-view orientation (dorsal at top, ventral at bottom) so
-    the two figures read consistently side-by-side.
+    Defaults give a 180° rotation of the sensor_arr.png ground-truth layout
+    (``flip_y=True`` AND ``flip_x=True``), i.e. forehead at the BOTTOM and
+    subject's LEFT on viewer's RIGHT. This matches the rostral view of
+    fig_montage_brain.png so the two panels read naturally side-by-side.
+
+    Other combinations:
+    - flip_y=False, flip_x=False → sensor_arr.png orientation (forehead UP,
+      neurological convention, subject's left on viewer's left).
+    - flip_y=True,  flip_x=False → vertical mirror only.
+    - flip_y=False, flip_x=True  → horizontal mirror only (face-on, forehead
+      still UP).
     """
     elc = parse_elc(elc_path)
     raw: Dict[str, Tuple[float, float]] = {}
     for label, pos in zip(elc.labels, elc.positions_mm):
         if label.startswith(("S", "D")) and len(label) == 2 and label[1].isdigit():
             raw[label] = (float(pos[0]), float(pos[1]))
-    if not flip_y:
-        return raw
-    ys = [y for _, y in raw.values()]
-    y_mid = (max(ys) + min(ys)) / 2.0
-    return {lbl: (x, 2.0 * y_mid - y) for lbl, (x, y) in raw.items()}
+    out = raw
+    if flip_y:
+        ys = [y for _, y in out.values()]
+        y_mid = (max(ys) + min(ys)) / 2.0
+        out = {lbl: (x, 2.0 * y_mid - y) for lbl, (x, y) in out.items()}
+    if flip_x:
+        xs = [x for x, _ in out.values()]
+        x_mid = (max(xs) + min(xs)) / 2.0
+        out = {lbl: (2.0 * x_mid - x, y) for lbl, (x, y) in out.items()}
+    return out
 
 
 def parse_channel_name(ch: str) -> Tuple[str, str]:
