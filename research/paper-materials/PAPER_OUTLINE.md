@@ -423,7 +423,7 @@ without re-running anything.
 
 ### 3.3.5 Brodmann-region cross-reference
 - **[DONE+WRITE]** Region-level re-aggregation produces `region_importance.csv` and `region_pair_matrix.npy` per cell (output of `04_atlas_registration.ipynb`). Sanity check C8: S2_D1 → BA10 probability ≥ 0.5.
-- **Expected narration:** the highest-importance regions cluster in **medial PFC (BA 10) / dlPFC (BA 9, 46)**; cross-reference Yeung 2020, Tupak 2014 GAD-PFC findings.
+- **Expected narration (rev. 2026-05-12, top-5 lead):** the top-5 most-attended channels (`S5_D5/BA46-R, S1_D1/BA10-L, S8_D5/BA9-R, S4_D4/BA9-R, S7_D4/BA8-L`) span **BA 8/9/10/46** — the dorsolateral, dorsomedial, and ventromedial PFC subdivisions implicated in anxiety. Two of the top-5 (S5_D5, S1_D1) are also §02 FDR-significant (HC > GAD, *d* = −0.92 and −0.81) → direct hypoactivity convergence. The remaining three (S7_D4, S4_D4, S8_D5) lie in BA 8/9 dmPFC but fall below univariate FDR — the multivariate, network-level signal the graph classifier surfaces. Cross-reference `pokorny2024young` (dlPFC inhibition deficit in GAD; matches Go/No-Go paradigm), `etkin2009functional` (anxiety meta-analysis), `davidson2002anxiety` (PFC emotion regulation). Figures: `research/paper-materials/figures/fig_xai_brain_overlay_top5.png` (brain heatmap) + `fig_top5_hbo_bars.png` (per-channel HC vs GAD with FDR brackets).
 
 ### 3.3.6 Convergence narrative
 - **[DONE+COMPUTED 2026-05-11]** Quantitative results from `research/paper-materials/stats/concordance_rho_table.csv` + companion `.md`. The convergence story is **set-overlap based, NOT rank-correlation**. Key numbers to report:

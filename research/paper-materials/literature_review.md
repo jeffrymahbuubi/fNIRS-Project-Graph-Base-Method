@@ -301,22 +301,34 @@
 > hyperparameter selection from final performance estimation and is a
 > mandatory practice for biomedical classifiers of small-cohort size.
 
-### §4.3 (Three-stream convergence — discussion) — 1 paragraph, ~120 words
+### §4.3 (Three-stream convergence — discussion) — 1 paragraph, ~140 words (rev. 2026-05-12, top-5 lead)
 
-> Three independent evidence streams converge on the same anatomical
-> cluster. Per-channel HbO STD analysis (§3.1.3) identifies four
-> FDR-significant channels in superior-medial PFC; canonical-HRF β
-> analysis (§3.1.4) adds two further FDR-significant channels in
-> mid-lateral PFC; and the GNN's native spatial attention (§3.3) ranks
-> these same channels in its top-10 importance list. The combined
-> six-channel set maps to Brodmann areas 9, 10, and 46 — the dorsolateral
-> and dorsomedial prefrontal regions implicated in anxiety
-> emotion-regulation and inhibitory-control deficits across multiple
-> imaging modalities [`davidson2002anxiety`; `pokorny2024young`;
-> `etkin2009functional`]. The agreement between the model's
-> learned attention and the classical statistical maps is the strongest
-> evidence that the classifier's signal is biological rather than
-> demographic or artefactual.
+> The GNN's top-5 most-attended channels — S5_D5 (BA46-R, right DLPFC),
+> S1_D1 (BA10-L, left vmPFC), S8_D5 (BA9-R, right DLPFC), S4_D4 (BA9-R,
+> dmPFC), and S7_D4 (BA8-L, dorsomedial PFC) — span the dorsolateral,
+> dorsomedial, and ventromedial PFC subdivisions implicated in anxiety.
+> Two of these top-5 (S5_D5 and S1_D1) are also FDR-significant in the
+> per-channel HbO STD analysis (§3.1.3, HC > GAD with *d* = −0.92 and
+> −0.81), confirming a hypoactivity pattern in the inhibitory-control
+> and emotion-regulation networks consistent with the GAD-fNIRS
+> literature [`pokorny2024young` (dlPFC inhibition deficit in GAD);
+> `etkin2009functional` (anxiety neuroimaging meta-analysis);
+> `davidson2002anxiety` (PFC emotion regulation)]. The remaining three
+> top-5 channels sit within BA 8/9 dmPFC but fall below univariate FDR
+> — the multivariate, network-level signal that motivates a graph-based
+> classifier. The Brodmann mapping (BA 8/9/10/46) aligns with
+> established GAD-PFC findings, and the agreement between learned
+> attention and classical statistical maps is the strongest evidence
+> that the classifier's signal is biological rather than demographic or
+> artefactual.
+
+> **Original six-channel C6-prior framing (pre-2026-05-12)** retained
+> as a fallback: "Three independent evidence streams converge on the
+> same anatomical cluster: §02 STD (4 FDR-significant), §06 canonical-HRF
+> β (2 FDR-significant), and GNN top-10 attention. The combined
+> 6-channel set `{S1_D1, S5_D5, S3_D3, S2_D1, S4_D5, S4_D7}` maps to BA
+> 9 / 10 / 46." Switch back to this framing if the reviewer prefers a
+> set-overlap emphasis over the top-5 ranking.
 
 ### §4.5 (Clinical deployability) — 1 paragraph, ~100 words
 
