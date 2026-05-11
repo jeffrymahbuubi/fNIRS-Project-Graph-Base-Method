@@ -42,6 +42,9 @@ secrets/
 sdkconfig
 build/
 
+# ─── Paper-materials render intermediates (regenerable from notebooks) ───────
+research/paper-materials/figures/_intermediate/
+
 # ─── OS generated ────────────────────────────────────────────────────────────
 # macOS
 .DS_Store
