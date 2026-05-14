@@ -1,5 +1,5 @@
-from dataclasses import dataclass, asdict
-from typing import Optional
+from dataclasses import dataclass, asdict, field
+from typing import List, Optional
 import os
 import random
 
@@ -26,6 +26,7 @@ class ExperimentConfig:
     directed: bool = False
     corr_threshold: float = 0.1
     self_loops: bool = False
+    channel_subset: Optional[List[int]] = None
     # Model (spatial)
     n_layers: int = 2
     n_filters: int = 64

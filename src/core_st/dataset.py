@@ -28,6 +28,7 @@ class fNIRSGraphDataset(Dataset):
         directed: bool = False,
         corr_threshold: float = 0.1,
         self_loops: bool = False,
+        channel_subset: Optional[Sequence[int]] = None,
     ):
         self.root = root
         self.task_type = task_type
@@ -36,6 +37,11 @@ class fNIRSGraphDataset(Dataset):
         self.directed = directed
         self.corr_threshold = corr_threshold
         self.self_loops = self_loops
+        # channel_subset: indices into the 23-channel canonical order (src/xai/channels.py).
+        # None = keep all channels. When set, rows of the raw trial are sliced BEFORE
+        # z-score / correlation / coherence, so the resulting graph has len(subset) nodes
+        # with edge_index automatically remapped to the new node ordering 0..K-1.
+        self.channel_subset = list(channel_subset) if channel_subset is not None else None
         self._graphs: List[Data] = []
         self._load()
 
@@ -53,6 +59,8 @@ class fNIRSGraphDataset(Dataset):
         if trial.ndim == 2 and trial.shape[0] > trial.shape[1]:
             trial = trial.T
         # trial: [C, T]
+        if self.channel_subset is not None:
+            trial = trial[self.channel_subset, :]
         # Per-channel z-score — self-contained, no cross-sample statistics needed
         mu = trial.mean(axis=1, keepdims=True)
         sigma = trial.std(axis=1, keepdims=True).clip(min=1e-8)

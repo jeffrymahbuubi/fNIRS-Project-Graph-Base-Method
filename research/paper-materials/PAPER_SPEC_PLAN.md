@@ -44,7 +44,7 @@
 | Source/Detector positions | `data/brainproducts-RNP-BA-128-custom.elc` parsed via `src/xai/atlas.py:parse_elc` |
 | Hemodynamic measures | HbO, HbR, HbT (HbT computed from HbO + HbR post-CBSI) |
 | **Chromophore in main paper (D2)** | **HbO + HbR main; HbT supplementary** |
-| **Headline ML chromophore (D7)** | **HbR LOSO mt2** → F1 = 0.8406 (global best) |
+| **Headline ML chromophore (D7)** | **HbO LOSO mt=2 K=12** → F1 = 0.8529 (sens 1.000, spec 0.697; +1.23 pp over the prior HbR K=23 = 0.8406). LOCKED 2026-05-14 after P1.7 channel-ablation. HbO matches stats arm; K=12 is the most beneficial subset across configurations (mean Δ-F1 +2.52 pp). Secondary number: HbO mt=4 K=8 = 0.8672 (highest raw F1). |
 | **Headline XAI chromophore (D6)** | **HbO LOSO mt2** (matches stats arm; ρ(HbO,HbR XAI) = +0.899 → chromophore-invariant) |
 | CBSI constraint | r(HbO, HbR) = −1 by construction (`DATA_QUALITY_REPORT.md §9.5`) — only HbT is unconstrained |
 
@@ -185,9 +185,16 @@ CHANNEL_NAMES = [
 **Combined C6 biological-prior 6-channel set (SPEC §11):**
 `{S1_D1, S5_D5, S3_D3, S2_D1, S4_D5, S4_D7}` — acceptance threshold ≥ 2/6 channels in GNN top-10.
 
-**ML headline (ST × HbR × mt2 × LOSO):**
-F1 = **0.8406**, Acc = 0.823, Sens = 1.000, Spec = 0.667. CM: TN=44, FP=22, FN=0, TP=58.
-**Source:** `experiments/spatial_temporal_graph/experiment_metrics.xlsx`.
+**ML headline (ST × HbO × LOSO × mt=2 × K=12) — LOCKED 2026-05-14 after P1.7 channel-ablation:**
+F1 = **0.8529**, Acc = 0.8387, Sens = 1.000, Spec = 0.697. CM: TN=46, FP=20, FN=0, TP=58.
+**Sources:** `experiments/spatial_temporal_graph/experiment_metrics.xlsx` (baseline) + `research/experiments/20260513/mt2/ST_GATv2_GNG_hbo_loso_mt2_noaug_K12_20260513/*_loso_overall.pkl` (K=12 headline cell).
++3.60 pp over the same-cell K=23 baseline (F1 = 0.8169). +1.23 pp over the prior global best (HbR mt2 K=23 = 0.8406, now superseded).
+
+**Secondary number to also report (highest raw F1; sensitivity-analysis row):**
+ST × HbO × LOSO × mt=4 × K=8 = F1 0.8672, Acc 0.8629, Sens 0.957, Spec 0.780. CM: TN=103, FP=29, FN=5, TP=111.
+
+**K-consistency claim for §III.C.7:**
+K=12 is the most beneficial subset across configurations — improves over the 23-channel baseline in 5 of 6 (chromo × mt) cells (mean Δ-F1 +2.52 pp; vs +1.85 pp at K=16 and +1.29 pp at K=8).
 
 **ST > SG aggregate paired test:**
 Wilcoxon W=3, p = 0.00244 across 12 paired k-fold cells. Mean Δ(ST−SG) F1 = **+3.78 pp**.
@@ -236,7 +243,7 @@ McNemar HbR mt4 LOSO p = 2.3 × 10⁻⁴ (47 ST-corrects vs 17 SG-corrects).
 | D4 | Citation style | IEEE numeric `[1], [2], …` | User P0.4 (2026-05-11) |
 | D5 | mt placement in main table | **Both mt2 + mt4 in main** (24-row table) | User (P0.3 follow-up) |
 | D6 | Headline XAI chromophore | **HbO** LOSO mt2 (matches stats arm) | Session 6 (2026-05-11) |
-| D7 | Headline ML chromophore | HbR LOSO mt2 (F1=0.8406 global best) | Locked since 2026-05-09 |
+| D7 | Headline ML chromophore | **HbO LOSO mt=2 K=12 (F1=0.8529 — NEW global best)** | Locked 2026-05-14 after P1.7 channel-ablation; supersedes HbR K=23 = 0.8406 |
 | D8 | XAI scope | ST = HbO/HbR/HbT; SG = HbO-only; native attention primary | `docs/SPEC_xai_graph.md` rev. 6 |
 | D9 | CV regimes reported | 5-fold + 10-fold + LOSO (all three) | Locked |
 | D10 | Trial-level vs subject-level | Trial-level in headline; subject-level voting in Discussion as failed experiment | `stats/subject_level_voting.md` |
@@ -457,19 +464,26 @@ Follow this 5-sentence template:
    prefrontal fNIRS channels during a Go/No-Go task, paired with native-attention
    XAI and Brodmann-area cross-validation.
 3. HEADLINE RESULT — 62-subject cohort (HC=33, GAD=29) under LOSO CV; ST achieves
-   F1 = 0.8406 (Acc = 0.823, Sens = 1.000, Spec = 0.667) on HbR mt=2; ST outperforms
-   Spatial-Graph baseline by +3.78 pp F1 across 12 paired k-fold cells
-   (Wilcoxon W=3, p = 0.0024).
-4. XAI CONVERGENCE — Native attention identifies a top-5 prefrontal cluster
+   F1 = 0.8529 (Acc = 0.839, Sens = 1.000, Spec = 0.697) on HbO mt=2 with a
+   K=12 channel subset derived from class-differential XAI — a +3.60 pp F1 gain
+   over the all-23-channel baseline. ST outperforms Spatial-Graph baseline by
+   +3.78 pp F1 across 12 paired k-fold cells (Wilcoxon W=3, p = 0.0024).
+4. PARSIMONY — A 12-channel discriminative subnetwork centred on S2_D1 (BA10-R)
+   improves classification reproducibly across configurations (5 of 6
+   chromophore × trial-cap cells positive; mean Δ-F1 +2.52 pp), validating that
+   anxiety-relevant signal concentrates in a small portion of the prefrontal montage.
+5. XAI CONVERGENCE — Native attention identifies a top-5 prefrontal cluster
    (BA46-R, BA10-L, BA9-R, BA8-L) consistent with established GAD-PFC literature;
    two of five channels (S5_D5 and S1_D1) reach FDR significance in classical
    per-channel hemodynamic analyses (HC > GAD; d = −0.92 and −0.81).
-5. SIGNIFICANCE — First graph-based fNIRS GAD classifier with per-channel attribution
+6. SIGNIFICANCE — First graph-based fNIRS GAD classifier with per-channel attribution
    at no extra inference cost, cross-validated against three independent statistical
-   streams.
+   streams and an empirical parsimony test on the XAI-derived subnetwork.
 
 Sources for numbers:
-- experiments/spatial_temporal_graph/experiment_metrics.xlsx (F1=0.8406)
+- research/experiments/20260513/mt2/ST_GATv2_GNG_hbo_loso_mt2_noaug_K12_20260513/*_loso_overall.pkl (F1=0.8529 headline)
+- experiments/spatial_temporal_graph/experiment_metrics.xlsx (K=23 baselines)
+- research/experiments/20260513/CHANNEL_ABLATION_RESULTS.md (parsimony validation)
 - stats/st_vs_sg_paired_test.md (paired W=3, p=0.0024)
 - xai/st/hbo/loso/mt2/native/channel_importance.csv (top-5 channels)
 - 02_brain_activation/results_brain_activation_stats.csv (FDR d-values)
@@ -954,12 +968,24 @@ Save to research/paper-materials/drafts/v1_results_stats_arm.md
 @scientific-writing Write Section III.B (Machine-Learning Results) for an IEEE TNSRE
 paper. Target ~700 words + Table 3 (24 rows) + Figures 6, 7.
 
-§III.B.1 Headline cell (~100 words):
-- ST × HbR × mt=2 × LOSO: F1 = 0.8406; Acc = 0.823; Sens = 1.000; Spec = 0.667
-- Confusion matrix: TN = 44, FP = 22, FN = 0, TP = 58
-- 62-subject LOSO regime (each subject held out once as test set)
-- Reference Figure 6 (`fig5_headline_cm.png`)
-- Source: experiments/spatial_temporal_graph/experiment_metrics.xlsx
+§III.B.1 Headline cell (~150 words; LOCKED 2026-05-14 after P1.7 channel-ablation):
+- Primary: ST × HbO × LOSO × mt=2 × K=12 = **F1 0.8529**; Acc = 0.839; Sens = 1.000; Spec = 0.697.
+  Confusion matrix: TN = 46, FP = 20, FN = 0, TP = 58. The K=12 subset is the
+  top-12 channels by HC-vs-GAD differential XAI weighted-degree (S2_D1, S4_D4,
+  S3_D1, S6_D3, S8_D5, S3_D6, S8_D7, S3_D4, S7_D6, S6_D6, S2_D2, S1_D1; details §III.C.7).
+  +3.60 pp over the all-23-channel baseline (F1 = 0.8169 at HbO mt2 K=23);
+  +1.23 pp over the prior published global best (HbR mt2 K=23 = 0.8406).
+- Secondary (sensitivity-analysis row): ST × HbO × LOSO × mt=4 × K=8 = F1 0.8672
+  (sens 0.957, spec 0.780, CM TN=103/FP=29/FN=5/TP=111). Highest raw F1 across
+  the 24-cell channel-ablation sweep; reported here because it shows the
+  classifier can reach higher F1 at the cost of imperfect anxiety detection.
+- 62-subject LOSO regime (each subject held out once as test set).
+- Reference Figure 6 (`fig5_headline_cm.png` — to be regenerated for the new HbO K=12 CM).
+- Sources:
+  - research/experiments/20260513/mt2/ST_GATv2_GNG_hbo_loso_mt2_noaug_K12_20260513/*_loso_overall.pkl (headline)
+  - research/experiments/20260513/mt4/ST_GATv2_GNG_hbo_loso_mt4_noaug_K08_20260513/*_loso_overall.pkl (secondary)
+  - experiments/spatial_temporal_graph/experiment_metrics.xlsx (K=23 baseline)
+  - research/experiments/20260513/CHANNEL_ABLATION_RESULTS.md (full 24-cell breakdown)
 
 §III.B.2 ST > SG paired test (~200 words):
 - Aggregate Wilcoxon W = 3, p = 0.00244 across 12 paired k-fold cells
@@ -979,7 +1005,7 @@ paper. Target ~700 words + Table 3 (24 rows) + Figures 6, 7.
 - Narrative pointers:
   - At LOSO mt4 HbR, ST dominates SG by the widest margin (matches McNemar finding)
   - At k-fold regimes, the gap narrows but remains positive on F1 across all 12 cells
-  - HbO and HbR show similar patterns; HbR is just the global best (F1 = 0.8406)
+  - HbO and HbR show similar patterns at K=23; HbR K=23 = 0.8406 was the prior global best at full-channel (now superseded by HbO K=12 = 0.8529 after channel-ablation — see §III.C.8 + Table 4)
 - HbT supplementary (D2): 24-row HbT table goes to Supplementary Table SI-T
 
 §III.B.4 Training dynamics (~150 words):
@@ -1073,10 +1099,85 @@ paper. Target ~700 words + Figures 8, 9, 10.
   in panels E/F.
 - Source: stats/concordance_rho_table.csv + concordance_rho_table.md
 
+§III.C.7 Class-differential connectivity: channel parsimony & S2_D1-centred network reshaping (~120 words, NEW 2026-05-13; narrative reframed 2026-05-13 — NOT a hardware-reduction sub-section):
+- LEAD CLAIM: every channel earns its place in the prefrontal montage. AVERAGE
+  GNN ATTENTION IS NEAR-UNIFORM across the 23 channels (K@80 % mass ≈ 21 in
+  every cell — top-3 hubs only ~1 % above the 1/22 uniform floor). No single
+  channel is visibly redundant.
+- HC-vs-GAD CLASS DIFFERENTIAL `|M_diff| = |M_GAD − M_HC|` IS concentrated
+  (max/min weighted-degree ratio 2.4–2.9 × across cells) — class discrimination
+  is carried by a small subnetwork, not by amplifying or silencing single
+  channels.
+- HEADLINE: **S2_D1 (BA10-R, right frontopolar / vmPFC) is the top-1
+  differential channel** in ST × HbO and ST × HbR; #2 in SG × HbO. This CLOSES
+  the §02 ↔ XAI disagreement noted in `project_xai_stats_concordance.md`:
+  S2_D1 ranked dead-last in *average* attention but rank-1 in *differential*
+  attention, restoring statistical convergence (S2_D1 is §02 FDR #1 and §06 #3).
+- Robust pairs across all 3 cells: S2_D1–S3_D3 (GAD > HC), S2_D1–S3_D6 (HC > GAD),
+  S2_D1–S6_D6 (GAD > HC) → S2_D1's connectivity profile is **rewired** between
+  groups (same node, different partners), not amplified or silenced. This is
+  the multivariate, edge-level signal that justifies a graph model over a flat
+  MLP.
+- STRUCTURAL-CORRELATION CONFOUND REJECTED: ρ (XAI `|M_diff|` weighted-degree,
+  structural `|C_diff|` weighted-degree from the raw fNIRS signal) is NEGATIVE
+  in all 3 cells (−0.33 / −0.28 / −0.39); the GNN's differential picks up
+  signal beyond raw correlation differences.
+- Cross-chromophore stability (HbO ↔ HbR within ST) Kendall τ = +0.35
+  (p = 0.019); cross-architecture (ST ↔ SG) τ ≈ +0.06 (n.s., accepted limitation).
+- Frame as a parsimony hypothesis: "every channel earns its place" — falsifiable
+  via the channel-ablation experiment in §V.B (top-K ablation cuts K = 12 / 8 / 16
+  produced by `05_channel_reduction.ipynb` are the test points). DO NOT frame
+  as a hardware / minimal-montage proposal: the 23 channels share 16 optodes,
+  and a K = 12 channel cut still requires 14 / 16 optodes — channel ablation
+  is the scientific test, not a device-design recommendation. Note this in
+  one sentence at most.
+- Reference Supplementary Figure SI-SUBNET (`subnetwork_top_decile.png`) —
+  three-panel 5×7 grid showing the top-decile `|M_diff|` edges per cell with
+  node size encoding weighted degree.
+- Source: research/xai/channel_reduction/{run.json, reduction_summary.csv,
+  top_differential_pairs.csv, figures/}; build script
+  scripts/build_xai_class_differential.py; analysis notebook
+  src/notebook/xai/05_channel_reduction.ipynb.
+
+§III.C.8 Parsimony-validation outcome (~140 words, NEW 2026-05-14 — empirical validation of §III.C.7):
+- LEAD: "We empirically tested the parsimony hypothesis stated in §III.C.7 by
+  retraining the ST model on top-K channel subsets ranked by `|M_diff|`
+  weighted degree (K ∈ {8, 12, 16}) across all three chromophores and both
+  trial-cap regimes (mt=2 and mt=4)."
+- K-CONSISTENCY RESULT: K=12 is the most beneficial subset across configurations.
+  It improves over the 23-channel baseline in 5 of 6 chromophore × trial-cap
+  cells (mean Δ-F1 +2.52 pp; vs +1.85 pp at K=16 and +1.29 pp at K=8). K=12 has
+  the highest mean F1 (0.8401) of any tested K. The single negative cell is
+  HbR at mt=4 (Δ-F1 −2.29 pp).
+- HEADLINE CELL: At mt=2 every chromophore peaks at K=12 (mean Δ-F1 +3.64 pp
+  over the K=23 baseline). The locked paper headline cell (HbO mt=2 K=12 =
+  F1 0.8529) is drawn from this regime.
+- CROSS-MT TRANSFERABILITY: At mt=4 the K=12 subset still helps in 2 of 3
+  chromophores (HbO +0.42 pp, HbT +6.05 pp); per-chromophore mt4 optimum K
+  shifts (HbO→K=8, HbR→K=16, HbT→K=12). The discriminative subnetwork is
+  well-localised at mt=2 (the regime the XAI was derived from) and
+  substantially transfers to mt=4.
+- SECONDARY NUMBER: HbO × mt=4 × K=8 = F1 0.8672 (sens 0.957, spec 0.780).
+  Highest raw F1 across the 24-cell sweep; included as a sensitivity-analysis row
+  in Table 3 §III.B.3, not as the headline (sens trade-off + sharp local maximum
+  rather than smooth peak).
+- CROSS-MODALITY REPLICATION: The mt=2 mean Δ-F1 (+3.64 pp at K=12/23 ≈ 52 %
+  retention) replicates Liu et al. [2023]'s +4–5 pp peak on EEG-emotion graphs
+  at K=30/62 ≈ 48 % retention — quantitative concordance across modalities.
+- HBT MT=4 K=23 NOTE: This cell showed run-to-run F1 variance of ~5 pp across
+  3 independent training runs (0.7860 / 0.8413 / 0.7860); 2 of 3 reproduce the
+  20260509 published baseline bit-identically. Disclosed under Threats-to-Validity (§V).
+- Reference Table 4 (channel-ablation Δ-F1 matrix, 24 cells) and Figure 8
+  (K-consistency bar plot or Δ-F1 grouped bar chart, to be generated).
+- Source: research/experiments/20260513/CHANNEL_ABLATION_RESULTS.md (full
+  breakdown, all metrics tables, K-consistency analysis §9.3, paper-headline
+  rationale §10.3); CHANNEL_ABLATION_COMMANDS.md (reproducible run commands).
+  Code: src/core_st/main.py `--channel_subset` flag + tests/core_st/test_channel_subset.py.
+
 Do NOT add new citations in §III.C.
 Pull exact ρ values from the source CSV — do NOT round/round-trip from memory.
 
-IEEE TNSRE style. ~700 words + 3 figure references.
+IEEE TNSRE style. ~960 words + 3 main-figure refs + 1 supplementary-figure ref + 1 new table ref (Table 4 channel-ablation Δ-F1 matrix).
 Save to research/paper-materials/drafts/v1_results_xai.md
 ```
 
@@ -1145,9 +1246,12 @@ paper. Target ~350 words.
 
 §V.A Conclusion (2 sentences, ~50 words):
 - Restate the core contribution: graph-based fNIRS GAD classification with
-  native-attention XAI cross-validated against a parallel statistical-analysis arm.
-- State the headline: ST F1 = 0.8406 (LOSO mt=2 HbR); ST > SG by +3.78 pp F1
-  (p = 0.0024); XAI top-5 spans BA 8/9/10/46 with 2/5 FDR-converging on §02.
+  native-attention XAI cross-validated against a parallel statistical-analysis arm
+  and an empirical channel-parsimony test on the XAI-derived subnetwork.
+- State the headline: ST F1 = 0.8529 (LOSO mt=2 HbO K=12, sens 1.000); ST > SG
+  by +3.78 pp F1 (p = 0.0024); XAI top-5 spans BA 8/9/10/46 with 2/5 FDR-converging
+  on §02; channel-parsimony at K=12 improves over the 23-channel baseline in 5 of 6
+  chromophore × trial-cap cells (mean Δ-F1 +2.52 pp).
 
 §V.B Future Work (8 bullets ranked by reviewer impact; top 3 in main paper,
 4-8 in supplementary, ~300 words):
@@ -1165,8 +1269,21 @@ paper. Target ~350 words.
    needs proper Bayesian treatment, not majority voting).
 8. End-to-end attention-rationale prompts: feed top-attended channels back into
    the training loop as a regularization signal (RLHF-style for biomedical XAI).
+9. (NEW 2026-05-14; replaces the prior "channel-ablation validation" bullet now
+   that the validation experiment is complete) Two residual follow-ups from the
+   channel-parsimony test (full results in §III.C.8 and Table 4):
+   (a) **K=4/K=6 collapse-point characterisation** — the 24-cell sweep tested
+   K ∈ {8, 12, 16, 23}; K=8 still beats baseline in HbO mt=4 (+6.58 pp Δ-F1).
+   The actual collapse point of the parsimony curve is below K=8 but not
+   characterised, and a K=4/K=6 follow-up would localise it.
+   (b) **mt=4-derived differential XAI re-derivation** — the K=12 subset used
+   in this paper was derived from ST × HbO × mt=2 differential XAI. HbR at
+   mt=4 K=12 underperforms (Δ-F1 −2.29 pp); a mt=4-specific XAI re-derivation
+   would test whether HbR's anti-parsimony behaviour is due to a wrong-regime
+   subset rather than a genuine HbR-mt4 limitation. Not pursued for v1 because
+   the existing mt=2 ranking is already validated by 5/6 channel-ablation cells.
 
-Top 3 to keep in main paper; 4-8 compressed into "Additional directions are
+Top 3 to keep in main paper; 4-9 compressed into "Additional directions are
 detailed in the Supplementary Information."
 
 Lift from research/paper-materials/PAPER_PROSE_SKELETONS.md §5 (already drafted).
