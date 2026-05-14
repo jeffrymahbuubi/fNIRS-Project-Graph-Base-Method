@@ -452,7 +452,7 @@ without re-running anything.
   - **C6 prior set in XAI top-10:** ST-HbO 3/6 (S5_D5, S1_D1, S3_D3); ST-HbR 4/6 (above + S4_D7); §02 5/6; §06 5/6. All exceed C6 acceptance threshold of ≥2/6.
   - **Disagreements to acknowledge:** S2_D1 (§02 #1, §06 #3) ranks dead last in ST-HbO XAI; S4_D5 / S4_D7 (§06-FDR pair) are outside ST-HbO top-10.
   - **Cross-chromophore XAI stability bonus:** ρ(ST attn HbO, ST attn HbR) = +0.899 (p<0.001). Interpretation: the graph attention surface is largely chromophore-invariant — it tracks signal-coupling structure, not chromophore-specific amplitude.
-- **Figure:** `research/paper-materials/figures/concordance_triptych.{png,svg}` — 3×2 layout: (A) ST attn HbO z-score topomap, (B) ST attn HbR z-score topomap, (C) §02 |d| topomap, (D) §06 |β d| topomap, (E) HbO temporal attention, (F) HbR temporal attention. C6 channels labelled in yellow; §06 cluster-permutation windows shaded in panels E/F.
+- **Figure:** `research/paper-materials/figures/results/concordance/concordance_triptych.{png,svg}` _(2026-05-15 reorg: moved from figures/concordance_triptych.{png,svg})_ — 3×2 layout: (A) ST attn HbO z-score topomap, (B) ST attn HbR z-score topomap, (C) §02 |d| topomap, (D) §06 |β d| topomap, (E) HbO temporal attention, (F) HbR temporal attention. C6 channels labelled in yellow; §06 cluster-permutation windows shaded in panels E/F.
 - **Stats table:** `research/paper-materials/stats/concordance_rho_table.csv` (6 rows).
 - **Build script:** `scripts/build_concordance_triptych.py` (re-runnable in ≤ 5 s with `src/.venv/bin/python`).
 
